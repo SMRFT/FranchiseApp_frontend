@@ -11,7 +11,7 @@ const Container = styled.div`
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
   min-height: 100vh;
 `
 
@@ -22,7 +22,7 @@ const Header = styled.div`
   border-radius: 12px;
   margin-bottom: 30px;
   text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(75, 158, 176, 0.2);
 `
 
 const Title = styled.h1`
@@ -362,7 +362,8 @@ const ModalText = styled.p`
 
 const SampleBatchManagement = () => {
   const [franchiseId, setFranchiseId] = useState("")
-  const [selectedDate, setSelectedDate] = useState("")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
   const [transferredSamples, setTransferredSamples] = useState([])
   const [loadingSamples, setLoadingSamples] = useState(false)
   const [sampleError, setSampleError] = useState(null)
@@ -386,14 +387,16 @@ const SampleBatchManagement = () => {
       setFranchiseId(storedFranchiseId)
       fetchFranchiseDetails(storedFranchiseId)
     }
-    setSelectedDate(getCurrentDate())
+    const today = getCurrentDate()
+    setFromDate(today)
+    setToDate(today)
   }, [])
 
   useEffect(() => {
-    if (franchiseId && selectedDate) {
+    if (franchiseId && fromDate && toDate) {
       fetchTransferredSamples()
     }
-  }, [franchiseId, selectedDate])
+  }, [franchiseId, fromDate, toDate])
 
   const fetchFranchiseDetails = async (fId) => {
     try {
@@ -418,8 +421,8 @@ const SampleBatchManagement = () => {
       }
 
       let url = `${franchiseurl}samples/transferred/?franchise_id=${franchiseId}&samplestatus=Transferred`
-      if (selectedDate) {
-        url += `&date=${selectedDate}`
+      if (fromDate && toDate) {
+        url += `&start_date=${fromDate}&end_date=${toDate}`
       }
 
       const response = await fetch(url)
@@ -501,164 +504,153 @@ const SampleBatchManagement = () => {
     return "||||| || ||| | |||| ||| || | |||||| | || ||| ||||"
   }
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     if (!createdBatchData) return
-
-    const doc = new jsPDF()
-    const pageWidth = doc.internal.pageSize.width
-    const currentDate = new Date()
-    const formattedDate = currentDate.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-    const formattedTime = currentDate.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-
-    // Barcode (simple representation)
-    doc.setFontSize(10)
-    doc.setFont("courier", "normal")
-    doc.text("||||| || ||| | |||| ||| || | |||||| | || ||| ||||", 20, 20)
-
-    // Main Header
-    doc.setFontSize(20)
-    doc.setFont("helvetica", "bold")
-    doc.text("Shanmuga Diagnostics", pageWidth / 2, 35, { align: "center" })
-
-    doc.setFontSize(16)
-    doc.setFont("helvetica", "normal")
-    doc.text("Shipment Report", pageWidth / 2, 45, { align: "center" })
-
-    // Add underline for Shipment Report
-    const textWidth = doc.getTextWidth("Shipment Report")
-    doc.line((pageWidth - textWidth) / 2, 47, (pageWidth + textWidth) / 2, 47)
-
-    // Left column details
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-
-    const leftX = 20
-    const rightX = pageWidth / 2 + 20
-    let yPos = 65
-
-    // Left side information
-    doc.text(`Shipment No    : ${createdBatchData.batch_number || "N/A"}`, leftX, yPos)
-    doc.text(`Shipment Date  : ${formattedDate} ${formattedTime}`, rightX, yPos)
-    yPos += 10
-
-    doc.text(`Shipment From  : ${createdBatchData.shipment_from || "N/A"}`, leftX, yPos)
-    doc.text(`Shipment To    : ${createdBatchData.shipment_to || "N/A"}`, rightX, yPos)
-    yPos += 10
-
-
-    // Main table
-    const tableHeaders = [
-      "Lab Id",
-      "Specimen Id",
-      "Specimen Type",
-      "Collection Date",
-      "Patient Name",
-      "Service Name",
-      "Received By",
-      "Received On",
-      "Spe.Missing",
-      "Missing Remarks",
-      "Ref Id1/2",
-    ]
-
-    const tableData = createdBatchData.samples.map((sample, index) => [
-      (507280000 + index + 35).toString(), // Lab Id
-      sample.barcode || "N/A",
-      sample.testdetails?.specimen_type || "N/A",
-      formattedDate + " " + formattedTime.substring(0, 5),
-      sample.patient_name || `Patient ${index + 1}`,
-      sample.testdetails?.testname || "N/A",
-      "", // Received By
-      "", // Received On
-      "No", // Spe.Missing
-      "", // Missing Remarks
-      "", // Ref Id
-    ])
-
-    // Use autoTable with proper import
-    autoTable(doc, {
-      head: [tableHeaders],
-      body: tableData,
-      startY: yPos,
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-      },
-      headStyles: {
-        fillColor: [173, 216, 230], // Light blue
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-      },
-      columnStyles: {
-        0: { cellWidth: 15 }, // Lab Id
-        1: { cellWidth: 20 }, // Specimen Id
-        2: { cellWidth: 18 }, // Specimen Type
-        3: { cellWidth: 20 }, // Collection Date
-        4: { cellWidth: 25 }, // Patient Name
-        5: { cellWidth: 35 }, // Service Name
-        6: { cellWidth: 15 }, // Received By
-        7: { cellWidth: 15 }, // Received On
-        8: { cellWidth: 15 }, // Spe.Missing
-        9: { cellWidth: 15 }, // Missing Remarks
-        10: { cellWidth: 12 }, // Ref Id
-      },
-      margin: { left: 20, right: 20 },
-    })
-
-    // Specimen Summary Table
-    yPos = doc.lastAutoTable.finalY + 15
-
-    const specimenHeaders = ["Specimen Name", "Count"]
-    const specimenData = []
-
-    if (createdBatchData.specimen_counts) {
-      createdBatchData.specimen_counts.forEach((spec) => {
-        specimenData.push([spec.specimen_type, spec.count.toString()])
+    try {
+      // Create scripts for jsPDF and autoTable if they don't exist
+      if (!window.jsPDF) {
+        // Load jsPDF
+        const jsPDFScript = document.createElement('script')
+        jsPDFScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        document.head.appendChild(jsPDFScript)
+        await new Promise((resolve, reject) => {
+          jsPDFScript.onload = resolve
+          jsPDFScript.onerror = reject
+        })
+        // Load autoTable plugin
+        const autoTableScript = document.createElement('script')
+        autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'
+        document.head.appendChild(autoTableScript)
+        await new Promise((resolve, reject) => {
+          autoTableScript.onload = resolve
+          autoTableScript.onerror = reject
+        })
+      }
+      // Access jsPDF from the global window object
+      const jsPDF = window.jsPDF || window.jspdf?.jsPDF
+      if (!jsPDF) {
+        throw new Error('jsPDF library failed to load')
+      }
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.width
+      const currentDate = new Date()
+      const formattedDate = currentDate.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
       })
-
-      const totalCount = createdBatchData.specimen_counts.reduce((sum, spec) => sum + spec.count, 0)
-      specimenData.push(["Total", totalCount.toString()])
+      const formattedTime = currentDate.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      // Barcode (simple representation)
+      doc.setFontSize(10)
+      doc.setFont("courier", "normal")
+      doc.text("||||| || ||| | |||| ||| || | |||||| | || ||| ||||", 20, 20)
+      // Main Header
+      doc.setFontSize(20)
+      doc.setFont("helvetica", "bold")
+      doc.text("Shanmuga Diagnostics", pageWidth / 2, 35, { align: "center" })
+      doc.setFontSize(16)
+      doc.setFont("helvetica", "normal")
+      doc.text("Shipment Report", pageWidth / 2, 45, { align: "center" })
+      // Add underline for Shipment Report
+      const textWidth = doc.getTextWidth("Shipment Report")
+      doc.line((pageWidth - textWidth) / 2, 47, (pageWidth + textWidth) / 2, 47)
+      // Left column details
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      const leftX = 20
+      const rightX = pageWidth / 2 + 20
+      let yPos = 65
+      // Left side information
+      doc.text(`Shipment No    : ${createdBatchData.batch_number || "N/A"}`, leftX, yPos)
+      doc.text(`Shipment Date  : ${formattedDate} ${formattedTime}`, rightX, yPos)
+      yPos += 10
+      // Main table
+      const tableHeaders = [
+        "Specimen Id",
+        "Collection Date",
+        "Patient Name",
+        "Test Name",
+        "Received On",
+      ]
+      const tableData = createdBatchData.samples.map((sample, index) => [
+        sample.barcode || "N/A",
+        formattedDate + " " + formattedTime.substring(0, 5),
+        sample.patient_name || `Patient ${index + 1}`,
+        sample.testdetails?.testname || "N/A",
+        "", // Received On
+      ])
+      // Use autoTable
+      doc.autoTable({
+        head: [tableHeaders],
+        body: tableData,
+        startY: yPos,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [173, 216, 230], // Light blue
+          textColor: [0, 0, 0],
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          0: { cellWidth: 15 },
+          1: { cellWidth: 20 },
+          2: { cellWidth: 18 },
+          3: { cellWidth: 20 },
+          4: { cellWidth: 25 },
+        },
+        margin: { left: 20, right: 20 },
+      })
+      // Specimen Summary Table
+      yPos = doc.lastAutoTable.finalY + 15
+      const specimenHeaders = ["Specimen Name", "Count"]
+      const specimenData = []
+      if (createdBatchData.specimen_count) {
+        createdBatchData.specimen_count.forEach((spec) => {
+          specimenData.push([spec.specimen_type, spec.count.toString()])
+        })
+        const totalCount = createdBatchData.specimen_count.reduce((sum, spec) => sum + spec.count, 0)
+        specimenData.push(["Total", totalCount.toString()])
+      }
+      if (specimenData.length > 0) {
+        doc.autoTable({
+          head: [specimenHeaders],
+          body: specimenData,
+          startY: yPos,
+          styles: {
+            fontSize: 10,
+            cellPadding: 3,
+          },
+          headStyles: {
+            fillColor: [173, 216, 230], // Light blue
+            textColor: [0, 0, 0],
+            fontStyle: "bold",
+          },
+          columnStyles: {
+            0: { cellWidth: 80 },
+            1: { cellWidth: 30, halign: "center" },
+          },
+          margin: { left: 20, right: 20 },
+        })
+        yPos = doc.lastAutoTable.finalY + 30
+      } else {
+        yPos += 30
+      }
+      // Signature section
+      doc.setFontSize(10)
+      doc.text("Signature      :", leftX, yPos)
+      // Save the PDF
+      doc.save(`shipment_${createdBatchData.batch_number}.pdf`)
+    } catch (error) {
+      console.error("Error generating PDF:", error)
+      alert("PDF generation failed. Please ensure you have a stable internet connection and try again.")
     }
-
-    autoTable(doc, {
-      head: [specimenHeaders],
-      body: specimenData,
-      startY: yPos,
-      styles: {
-        fontSize: 10,
-        cellPadding: 3,
-      },
-      headStyles: {
-        fillColor: [173, 216, 230], // Light blue
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-      },
-      columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 30, halign: "center" },
-      },
-      margin: { left: 20, right: 20 },
-    })
-
-    // Signature section
-    yPos = doc.lastAutoTable.finalY + 30
-
-    doc.setFontSize(10)
-    doc.text("Signature      :", leftX, yPos)
-
-
-    // Save the PDF
-    doc.save(`shipment_${createdBatchData.batch_number}.pdf`)
   }
-
   return (
     <Container>
       <Header>
@@ -686,12 +678,21 @@ const SampleBatchManagement = () => {
             />
           </InputGroup>
           <InputGroup>
-            <Label htmlFor="selectedDate">Select Date</Label>
+            <Label htmlFor="fromDate">From Date</Label>
             <Input
-              id="selectedDate"
+              id="fromDate"
               type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </InputGroup>
+          <InputGroup>
+            <Label htmlFor="toDate">To Date</Label>
+            <Input
+              id="toDate"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
             />
           </InputGroup>
         </FormGrid>

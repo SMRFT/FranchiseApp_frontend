@@ -1,795 +1,597 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import styled, { keyframes } from "styled-components"
+import React, { useState, useEffect, useRef } from "react"
+import { useNavigate } from "react-router-dom"
+import styled, { keyframes, createGlobalStyle, css } from "styled-components"
 import axios from "axios"
-import GlobalStyle from "./GlobalStyle"
+import BarcodeScanner from "./BarcodeScanner"
+import RefBy from "./RefBy"
 
+// ============================================
+// 1. THEME & GLOBAL STYLES
+// ============================================
+
+const theme = {
+  colors: {
+    primary: "#4F46E5", // Indigo 600
+    primaryHover: "#4338ca",
+    secondary: "#64748B", // Slate 500
+    success: "#10B981", // Emerald 500
+    warning: "#F59E0B", // Amber 500
+    danger: "#EF4444", // Red 500
+    background: "#F8FAFC", // Slate 50
+    surface: "#FFFFFF",
+    text: "#1E293B", // Slate 800
+    textLight: "#64748B",
+    border: "#E2E8F0",
+    inputBg: "#F8FAFC",
+  },
+  shadows: {
+    sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+    md: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+    xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    glow: "0 0 15px rgba(79, 70, 229, 0.3)",
+  },
+  radius: {
+    sm: "0.375rem",
+    md: "0.75rem", // 12px
+    lg: "1rem", // 16px
+    xl: "1.5rem", // 24px
+  }
+}
+
+const GlobalStyle = createGlobalStyle`
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* body background removed to allow global theme */
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    color: ${theme.colors.text};
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`
+
+
+
+// ============================================
+// 2. ANIMATIONS
+// ============================================
 const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+`
+
+const slideInRight = keyframes`
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+`
+
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+`
+
+// ============================================
+// 3. STYLED COMPONENTS
+// ============================================
+
+const LayoutWrapper = styled.div`
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  
+  @media (max-width: 768px) {
+    padding: 1rem 0.5rem;
   }
 `
 
-const slideIn = keyframes`
-  from {
-    transform: translateX(-10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-`
-
-const toastSlideIn = keyframes`
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-`
-
-const toastSlideOut = keyframes`
-  from {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  to {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-`
-
-const progressBar = keyframes`
-  from {
-    width: 100%;
-  }
-  to {
-    width: 0%;
-  }
-`
-
-const scannerFadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-`
-
-const FormWrapper = styled.div`
+const Card = styled.div`
+  width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
-  background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 2rem;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: ${fadeIn} 0.8s ease-out;
-  
-  @media (max-width: 768px) {
-    padding: 1.5rem;
-    margin: 0 1rem;
-  }
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: ${theme.radius.xl};
+  box-shadow: ${theme.shadows.xl};
+  border: 1px solid white;
+  overflow: hidden;
+  animation: ${fadeIn} 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 `
 
-const Form = styled.form`
-  width: 100%;
-`
-
-const FormSection = styled.div`
-  margin-bottom: 1.5rem;
-  animation: ${slideIn} 0.6s ease-out;
-  animation-delay: ${(props) => props.delay || "0s"};
-  animation-fill-mode: both;
-`
-
-const SectionTitle = styled.h5`
-  color: #2d3748;
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &::before {
-    content: '${(props) => props.icon || "📋"}';
-    font-size: 1rem;
-  }
-`
-
-const Row = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 -8px;
-  margin-bottom: 15px;
-`
-
-const Col = styled.div`
-  flex: 0 0 25%;
-  max-width: 25%;
-  padding: 0 8px;
-  
-  @media (max-width: 992px) {
-    flex: 0 0 50%;
-    max-width: 50%;
-  }
-  
-  @media (max-width: 576px) {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-`
-
-const SearchRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 -8px;
-  margin-bottom: 20px;
-  align-items: end;
-`
-
-const SearchCol = styled.div`
-  flex: 1;
-  padding: 0 8px;
-  min-width: 300px;
-  
-  @media (max-width: 768px) {
-    min-width: 100%;
-    margin-bottom: 10px;
-  }
-`
-
-const ButtonCol = styled.div`
-  flex: 0 0 auto;
-  padding: 0 8px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-`
-
-const BarcodeSection = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-`
-
-const BarcodeRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  flex-wrap: wrap;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
-`
-
-const BarcodeInputWrapper = styled.div`
-  flex: 1;
-  min-width: 300px;
-  
-  @media (max-width: 768px) {
-    min-width: 100%;
-  }
-`
-
-const BarcodeActions = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-`
-
-const FormGroup = styled.div`
-  margin-bottom: 15px;
-  position: relative;
-`
-
-const Input = styled.input`
-  width: 100%;
-  padding: 0.625rem 0.875rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  background: white;
-  transition: all 0.3s ease;
-  color: #2d3748;
-  
-  &::placeholder {
-    color: #a0aec0;
-    font-weight: 400;
-  }
-  
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    transform: translateY(-1px);
-    background: #fafafa;
-  }
-  
-  &:hover:not(:focus) {
-    border-color: #cbd5e0;
-    transform: translateY(-1px);
-  }
-  
-  &.barcode-input {
-    background: ${(props) => (props.value ? "linear-gradient(135deg, #f0f9ff, #e0f2fe)" : "white")};
-    border-color: ${(props) => (props.value ? "#0ea5e9" : "#e2e8f0")};
-    font-family: 'Courier New', monospace;
-    font-weight: 600;
-    color: ${(props) => (props.value ? "#0c4a6e" : "#2d3748")};
-  }
-`
-
-const Select = styled.select`
-  width: 100%;
-  padding: 0.625rem 0.875rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  background: white;
-  transition: all 0.3s ease;
-  color: #2d3748;
-  cursor: pointer;
-  
-  &:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    transform: translateY(-1px);
-    background: #fafafa;
-  }
-  
-  &:hover:not(:focus) {
-    border-color: #cbd5e0;
-    transform: translateY(-1px);
-  }
-  
-  option {
-    padding: 0.5rem;
-    font-weight: 500;
-  }
-`
-
-const SearchButton = styled.button`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 8px;
-  padding: 0.625rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-`
-
-const ScannerButton = styled.button`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: none;
-  border-radius: 8px;
-  padding: 0.625rem;
-  font-size: 1rem;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-`
-
-const ClearButton = styled.button`
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border: none;
-  border-radius: 8px;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-`
-
-const BarcodeStatus = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: ${(props) =>
-    props.isValid ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #6b7280, #4b5563)"};
-  color: white;
-  
-  &::before {
-    content: '${(props) => (props.isValid ? "✅" : "⏳")}';
-    font-size: 0.875rem;
-  }
-`
-
-const ScannerOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: ${scannerFadeIn} 0.3s ease-out;
-`
-
-const ScannerModal = styled.div`
-  background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  max-width: 700px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-`
-
-const ScannerHeader = styled.div`
+const Header = styled.header`
+  background: linear-gradient(to right, #fff, #f8fafc);
+  padding: 2rem 2.5rem;
+  border-bottom: 1px solid ${theme.colors.border};
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `
 
-const ScannerTitle = styled.h3`
-  color: #2d3748;
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-`
-
-const CloseButton = styled.button`
-  background: #e53e3e;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  color: white;
-  cursor: pointer;
-  font-size: 1.2rem;
+const TitleGroup = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: #c53030;
-    transform: scale(1.1);
-  }
+  flex-direction: column;
+  gap: 0.25rem;
 `
 
-const ScannerViewport = styled.div`
-  width: 100%;
-  max-width: 640px;
-  height: 400px;
-  border: 2px solid #667eea;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  background-color: #000;
-  margin: 0 auto;
-  
-  #interactive {
-    width: 100%;
-    height: 100%;
-  }
-  
-  #interactive video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  #interactive canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
-  
-  .drawingBuffer {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
+const MainTitle = styled.h1`
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: ${theme.colors.text};
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, ${theme.colors.text} 0%, ${theme.colors.primary} 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `
 
-const ScannerControls = styled.div`
-  display: flex;
-  justify-content: center;
-  margin: 1rem 0;
-`
-
-const ScannerControlButton = styled.button`
-  background: ${(props) => (props.$scanning ? "#e74c3c" : "#3498db")};
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: ${(props) => (props.$scanning ? "#c0392b" : "#2980b9")};
-    transform: translateY(-1px);
-  }
-  
-  &:active {
-    transform: translateY(1px);
-  }
-`
-
-const ScanMessage = styled.div`
-  background-color: #fff3cd;
-  color: #856404;
-  padding: 12px;
-  border-radius: 8px;
-  margin: 10px 0;
-  border: 1px solid #ffeaa7;
-  text-align: center;
-`
-
-const ScanResult = styled.div`
-  background: #f0f9ff;
-  border: 2px solid #0ea5e9;
-  border-radius: 12px;
-  padding: 1rem;
-  margin: 1rem 0;
-  text-align: center;
-`
-
-const ScanResultCode = styled.div`
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  color: #0c4a6e;
-  font-size: 1.2rem;
-  margin-bottom: 0.5rem;
-`
-
-const ScanResultFormat = styled.div`
-  background: #0ea5e9;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  display: inline-block;
-`
-
-const ToggleContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`
-
-const ToggleSwitch = styled.div`
-  position: relative;
-  width: 50px;
-  height: 25px;
-  background: ${(props) => (props.isOn ? "linear-gradient(135deg, #667eea, #764ba2)" : "#cbd5e0")};
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: ${(props) => (props.isOn ? "0 4px 15px rgba(102, 126, 234, 0.3)" : "0 2px 8px rgba(0, 0, 0, 0.1)")};
-  
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: ${(props) => (props.isOn ? "0 6px 20px rgba(102, 126, 234, 0.4)" : "0 4px 12px rgba(0, 0, 0, 0.15)")};
-  }
-`
-
-const ToggleSlider = styled.div`
-  position: absolute;
-  top: 2px;
-  left: ${(props) => (props.isOn ? "27px" : "2px")};
-  width: 21px;
-  height: 21px;
-  background: white;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-`
-
-const ToggleLabel = styled.span`
-  font-weight: 600;
-  color: ${(props) => (props.isActive ? "#667eea" : "#718096")};
+const SubTitle = styled.span`
   font-size: 0.875rem;
-  transition: color 0.3s ease;
+  color: ${theme.colors.textLight};
+  font-weight: 500;
 `
 
-const SegmentIndicator = styled.div`
-  background: ${(props) => (props.isHomeCollection ? "linear-gradient(135deg, #10b981, #059669)" : "linear-gradient(135deg, #f59e0b, #d97706)")};
-  color: white;
-  padding: 6px 12px;
-  border-radius: 16px;
-  font-size: 0.75rem;
+const Content = styled.div`
+  padding: 2.5rem;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
+`
+
+// --- Layout Grid System ---
+const Section = styled.section`
+  margin-bottom: 3rem;
+  position: relative;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`
+
+const SectionHeader = styled.h2`
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: ${theme.colors.textLight};
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: ${theme.colors.border};
+  }
+`
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+`
+
+const Col = styled.div`
+  grid-column: span ${props => props.span || 12};
+  
+  @media (max-width: 1024px) {
+    grid-column: span ${props => props.tablet || props.span || 12};
+  }
+  
+  @media (max-width: 768px) {
+    grid-column: span 12; // Stack on mobile
+  }
+`
+
+// --- Form Elements ---
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+`
+
+const Label = styled.label`
+  font-size: 0.875rem;
   font-weight: 600;
+  color: ${theme.colors.text};
+  display: flex;
+  justify-content: space-between;
+`
+
+const baseInputStyles = css`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: ${theme.radius.md};
+  border: 1px solid ${theme.colors.border};
+  background: ${theme.colors.inputBg};
+  color: ${theme.colors.text};
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    background: white;
+  }
+
+  &:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    color: #cbd5e1;
+  }
+`
+
+const Input = styled.input`
+  ${baseInputStyles}
+`
+
+const Select = styled.select`
+  ${baseInputStyles}
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+`
+
+const Button = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: ${theme.radius.md};
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  
+  ${props => {
+    switch (props.variant) {
+      case 'primary':
+        return css`
+          background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
+          color: white;
+          box-shadow: 0 4px 6px rgba(75, 158, 176, 0.25);
+          border: none;
+          &:hover:not(:disabled) { 
+            background: linear-gradient(135deg, rgb(85, 156, 175), rgb(38, 136, 158));
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px rgba(75, 158, 176, 0.3);
+          }
+        `
+      case 'success':
+        return css`
+          background: ${theme.colors.success};
+          color: white;
+          box-shadow: 0 4px 6px rgba(16, 185, 129, 0.25);
+          &:hover:not(:disabled) { 
+            background: #059669; 
+            transform: translateY(-1px);
+          }
+        `
+      case 'warning':
+        return css`
+          background: ${theme.colors.warning};
+          color: white;
+          box-shadow: 0 4px 6px rgba(245, 158, 11, 0.25);
+          &:hover:not(:disabled) { background: #d97706; transform: translateY(-1px); }
+        `
+      case 'danger':
+        return css`
+          background: ${theme.colors.danger};
+          color: white;
+          &:hover:not(:disabled) { background: #dc2626; }
+        `
+      case 'outline':
+        return css`
+          background: transparent;
+          border: 2px solid ${theme.colors.border};
+          color: ${theme.colors.text};
+          &:hover:not(:disabled) { 
+            border-color: ${theme.colors.textLight}; 
+            background: #f8fafc;
+          }
+        `
+      default:
+        return css`
+          background: ${theme.colors.primary};
+          color: white;
+        `
+    }
+  }}
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+`
+
+// --- Specialized Components ---
+
+const BarcodeCard = styled.div`
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+  border: 1px solid #C7D2FE;
+  border-radius: ${theme.radius.lg};
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+
+  .input-wrapper {
+    flex: 1;
+    min-width: 250px;
+  }
+`
+
+const ScannerInput = styled(Input)`
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+  font-weight: 700;
+  background: white;
+  border-color: ${props => props.isValid ? theme.colors.success : theme.colors.border};
+`
+
+const ScanStatus = styled.div`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  
-  &::before {
-    content: '${(props) => (props.isHomeCollection ? "🏠" : "🚶")}';
-    font-size: 0.875rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: ${props => props.isValid ? theme.colors.success : "#94a3b8"};
+  color: white;
+`
+
+const ToggleSwitch = styled.div`
+  background: ${props => props.isOn ? theme.colors.success : theme.colors.border};
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  padding: 2px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+
+  div {
+    width: 22px;
+    height: 22px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transform: translateX(${props => props.isOn ? '22px' : '0'});
+    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   }
 `
 
+// --- Tables & Lists ---
+const TestSearchWrapper = styled.div`
+  position: relative;
+`
+
+const DropdownList = styled.div`
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 250px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid ${theme.colors.border};
+  border-radius: ${theme.radius.md};
+  box-shadow: ${theme.shadows.lg};
+  z-index: 50;
+  margin-top: 0.5rem;
+`
+
+const DropdownItem = styled.div`
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.1s;
+
+  &:hover {
+    background: #f8fafc;
+    color: ${theme.colors.primary};
+  }
+  
+  &:last-child { border-bottom: none; }
+`
+
+const TableWrapper = styled.div`
+  border-radius: ${theme.radius.lg};
+  border: 1px solid ${theme.colors.border};
+  overflow: hidden;
+  background: white;
+`
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: #f8fafc;
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: ${theme.colors.textLight};
+    font-weight: 700;
+    border-bottom: 1px solid ${theme.colors.border};
+  }
+
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid ${theme.colors.border};
+    color: ${theme.colors.text};
+    font-size: 0.95rem;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+`
+
+// --- Financial / Summary ---
+const SummaryCard = styled.div`
+  background: ${theme.colors.background};
+  border-radius: ${theme.radius.lg};
+  padding: 1.5rem;
+  border: 1px solid ${theme.colors.border};
+`
+
+const FinancialRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  
+  &.total {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 2px dashed ${theme.colors.border};
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: ${theme.colors.primary};
+  }
+
+  span.label { color: ${theme.colors.textLight}; font-size: 0.9rem; font-weight: 500; }
+  span.value { color: ${theme.colors.text}; font-weight: 700; font-family: 'Courier New', monospace; }
+`
+
+// --- Toasts & Overlays ---
 const ToastContainer = styled.div`
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 2000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1rem;
 `
 
 const Toast = styled.div`
+  min-width: 320px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  padding: 1rem;
+  border-radius: ${theme.radius.md};
+  box-shadow: ${theme.shadows.lg};
+  border-left: 4px solid ${props => theme.colors[props.type] || theme.colors.primary};
+  animation: ${slideInRight} 0.3s ease forwards;
+  display: flex;
+  align-items: start;
+  gap: 0.75rem;
+
+  .icon { font-size: 1.25rem; }
+  .content { flex: 1; }
+  .title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .message { font-size: 0.8rem; color: ${theme.colors.textLight}; }
+`
+
+const StatusBanner = styled.div`
+  background: ${props => {
+    if (props.status === 'registered') return '#ECFDF5'; // emerald 50
+    if (props.status === 'billed') return '#EFF6FF'; // blue 50
+    return '#F3F4F6';
+  }};
+  color: ${props => {
+    if (props.status === 'registered') return '#047857';
+    if (props.status === 'billed') return '#1D4ED8';
+    return '#374151';
+  }};
+  border: 1px solid ${props => {
+    if (props.status === 'registered') return '#A7F3D0';
+    if (props.status === 'billed') return '#BFDBFE';
+    return '#E5E7EB';
+  }};
+  padding: 1rem;
+  border-radius: ${theme.radius.md};
+  margin-bottom: 2rem;
   display: flex;
   align-items: center;
-  min-width: 350px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: ${(props) => (props.isExiting ? toastSlideOut : toastSlideIn)} 0.3s ease-out;
-  position: relative;
-  overflow: hidden;
-  background: ${(props) =>
-    props.type === "success"
-      ? "linear-gradient(135deg, #10b981, #059669)"
-      : props.type === "info"
-        ? "linear-gradient(135deg, #3b82f6, #1d4ed8)"
-        : "linear-gradient(135deg, #ef4444, #dc2626)"};
-  color: white;
-  
-  @media (max-width: 480px) {
-    min-width: calc(100vw - 40px);
-    margin: 0 10px;
-  }
-`
-
-const ToastIcon = styled.div`
-  margin-right: 12px;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-`
-
-const ToastContent = styled.div`
-  flex: 1;
-`
-
-const ToastTitle = styled.div`
+  justify-content: center;
+  gap: 0.75rem;
   font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 2px;
+  animation: ${fadeIn} 0.5s ease;
 `
 
-const ToastMessage = styled.div`
-  font-size: 13px;
-  opacity: 0.9;
-  line-height: 1.4;
-`
-
-const ToastCloseButton = styled.button`
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 4px;
-  margin-left: 12px;
-  border-radius: 4px;
-  transition: background 0.2s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-`
-
-const ToastProgress = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.3);
-  animation: ${progressBar} ${(props) => props.duration}ms linear;
-`
-
-const InfoSection = styled.div`
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 25px;
-  border-left: 4px solid #667eea;
-  
-  @media (max-width: 768px) {
-    padding: 15px;
-    margin-top: 20px;
-  }
-`
-
-const InfoTitle = styled.h3`
-  color: #2d3748;
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &::before {
-    content: '📋';
-    font-size: 1rem;
-  }
-`
-
-const AgeIndicator = styled.div`
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #667eea;
-  color: white;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  pointer-events: none;
-`
-
-// Scanner Icon SVG Component
-const ScannerIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M3 7V5C3 3.89543 3.89543 3 5 3H7V5H5V7H3ZM17 5V3H19C20.1046 3 21 3.89543 21 5V7H19V5H17ZM7 19V21H5C3.89543 21 3 20.1046 3 19V17H5V19H7ZM19 17V19C19 20.1046 18.1046 21 17 21H19V19H17V17H19ZM2 11H22V13H2V11Z" />
-  </svg>
-)
-
-// Scanner Hook
-const useQuaggaScanner = (onDetected) => {
-  const scannerRef = useRef(null)
-
-  const initScanner = () => {
-    if (typeof window !== "undefined" && window.Quagga) {
-      window.Quagga.init(
-        {
-          inputStream: {
-            type: "LiveStream",
-            target: scannerRef.current,
-            constraints: {
-              width: 640,
-              height: 480,
-              facingMode: "environment",
-            },
-          },
-          locator: {
-            patchSize: "medium",
-            halfSample: true,
-          },
-          numOfWorkers: 2,
-          decoder: {
-            readers: [
-              "code_128_reader",
-              "ean_reader",
-              "ean_8_reader",
-              "code_39_reader",
-              "code_39_vin_reader",
-              "codabar_reader",
-              "upc_reader",
-              "upc_e_reader",
-            ],
-          },
-          locate: true,
-        },
-        (err) => {
-          if (err) {
-            console.error("Quagga initialization error:", err)
-            return
-          }
-          window.Quagga.start()
-        },
-      )
-
-      window.Quagga.onDetected(onDetected)
-    }
-  }
-
-  const stopScanner = () => {
-    if (typeof window !== "undefined" && window.Quagga) {
-      window.Quagga.stop()
-      window.Quagga.offDetected(onDetected)
-    }
-  }
-
-  return { scannerRef, initScanner, stopScanner }
+// --- Icons (Simple SVG Components) ---
+const Icons = {
+  Scan: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2m2-8h14" /></svg>,
+  Search: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>,
+  User: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+  Trash: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+  Check: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
 }
 
-// Scanner Component
-const Scanner = ({ onDetected }) => {
-  const { scannerRef, initScanner, stopScanner } = useQuaggaScanner(onDetected)
+const ModalOverlay = styled.div`
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+`
+const ModalContent = styled.div`
+  background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 800px;
+  max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+`
 
-  useEffect(() => {
-    initScanner()
-    return () => stopScanner()
-  }, [])
-
-  return (
-    <ScannerViewport>
-      <div id="interactive" ref={scannerRef} />
-    </ScannerViewport>
-  )
-}
-
+// ==================================================
+// HELPER FUNCTIONS
+// ==================================================
 function getCurrentDateTime() {
   const now = new Date()
   const offset = now.getTimezoneOffset()
@@ -797,49 +599,34 @@ function getCurrentDateTime() {
   return localDate.toISOString().slice(0, 16)
 }
 
-// Utility function to calculate age from date of birth
 function calculateAge(dateOfBirth) {
   if (!dateOfBirth) return ""
   const today = new Date()
   const birthDate = new Date(dateOfBirth)
   if (birthDate > today) return ""
-
   let age = today.getFullYear() - birthDate.getFullYear()
   const monthDiff = today.getMonth() - birthDate.getMonth()
-
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--
   }
-
   return age.toString()
 }
 
-// Utility function to calculate approximate DOB from age
 function calculateDOBFromAge(age) {
   if (!age || isNaN(age)) return ""
   const today = new Date()
-  const birthYear = today.getFullYear() - Number.parseInt(age)
+  const birthYear = today.getFullYear() - parseInt(age)
   const approximateDOB = new Date(birthYear, today.getMonth(), today.getDate())
   return approximateDOB.toISOString().split("T")[0]
 }
 
+
 const PatientRegistrationAndBilling = () => {
+  const navigate = useNavigate()
   const franchiseurl = process.env.REACT_APP_BACKEND_FRANCHISE_BASE_URL
-  const franchiseName = localStorage.getItem("franchise_name")
-
-  // Refs to prevent multiple API calls
+  // Refs & State
   const processedBarcodes = useRef(new Set())
-  const isProcessingBarcode = useRef(false)
-
-// useEffect(() => {
-//   const id = localStorage.getItem("franchise_id");
-//   console.log("ID fetched from localStorage:", id); // Debug
-//   setFormData((prev) => ({
-//     ...prev,
-//     franchise_id: id || "",
-//   }));
-// }, []);
-const storedFranchiseId = localStorage.getItem("franchise_id") || "";
+  const storedFranchiseId = localStorage.getItem("franchise_id") || ""
 
   const [formData, setFormData] = useState({
     title: "",
@@ -853,6 +640,7 @@ const storedFranchiseId = localStorage.getItem("franchise_id") || "";
     city: "",
     area: "",
     pincode: "",
+    address: "",
     registrationDate: getCurrentDateTime(),
     referredDoctor: "",
     franchise_id: storedFranchiseId,
@@ -864,790 +652,824 @@ const storedFranchiseId = localStorage.getItem("franchise_id") || "";
   const [testSearchQuery, setTestSearchQuery] = useState("")
   const [selectedTests, setSelectedTests] = useState([])
   const [total, setTotal] = useState(0)
-  const [discount, setDiscount] = useState("")
+  const [discountPercentage, setDiscountPercentage] = useState("")
+  const [discountAmount, setDiscountAmount] = useState("")
   const [netAmount, setNetAmount] = useState(0)
-  const [paymentMode, setPaymentMode] = useState("Cash")
+  const [payments, setPayments] = useState([{ mode: "Cash", amount: "", referenceNumber: "" }])
+  const [paymentMode, setPaymentMode] = useState("Cash") // Keep for backward compatibility or primary mode logic
   const [isHomeCollection, setIsHomeCollection] = useState(false)
   const [toasts, setToasts] = useState([])
-
-  // Scanner states
+  const [registrationStatus, setRegistrationStatus] = useState("pending")
+  const [currentPatientId, setCurrentPatientId] = useState("")
+  const [currentRegistrationId, setCurrentRegistrationId] = useState("")
+  const [revenueInfo, setRevenueInfo] = useState(null)
   const [showScanner, setShowScanner] = useState(false)
-  const [scanning, setScanning] = useState(false)
-  const [scanResult, setScanResult] = useState(null)
-  const [scanMessage, setScanMessage] = useState(null)
-  const [scanError, setScanError] = useState(null)
   const [barcodeId, setbarcodeId] = useState("")
   const [barcodeValidated, setBarcodeValidated] = useState(false)
+  const [showRefByModal, setShowRefByModal] = useState(false)
+  const [refByList, setRefByList] = useState([])
+  const [walletBalance, setWalletBalance] = useState(null)
 
+  const [showPendingModal, setShowPendingModal] = useState(false)
+  const [pendingRegistrations, setPendingRegistrations] = useState([])
+  const [loadingPending, setLoadingPending] = useState(false)
+  // Toast Logic
   const showToast = (type, title, message) => {
     const id = Date.now()
-    const newToast = { id, type, title, message, isExiting: false }
-    setToasts((prev) => [...prev, newToast])
-
-    setTimeout(() => {
-      removeToast(id)
-    }, 5000)
+    setToasts(prev => [...prev, { id, type, title, message }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000)
   }
 
-  const removeToast = (id) => {
-    setToasts((prev) => prev.map((toast) => (toast.id === id ? { ...toast, isExiting: true } : toast)))
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id))
-    }, 300)
-  }
-
+  // Effects
   useEffect(() => {
     const fetchTests = async () => {
       try {
         const response = await axios.get(`${franchiseurl}test-details/`)
         setTestList(response.data || [])
       } catch (error) {
-        console.error("Failed to fetch test details:", error)
+        console.error("Failed to fetch test details", error)
       }
     }
-
     fetchTests()
-  }, [])
+  }, [franchiseurl])
+
+  const fetchRefBy = async () => {
+    try {
+      if (!storedFranchiseId) return;
+      const response = await axios.get(`${franchiseurl}refby/?franchise_id=${storedFranchiseId}`)
+      setRefByList(response.data || [])
+    } catch (error) {
+      console.error("Failed to fetch refby details", error)
+    }
+  }
+
+  const fetchWalletBalance = async () => {
+    try {
+      if (!storedFranchiseId) return;
+      const response = await axios.get(`${franchiseurl}get-wallet-balance/?franchise_id=${storedFranchiseId}`)
+      setWalletBalance(response.data.available_balance)
+    } catch (error) {
+      console.error("Failed to fetch wallet balance", error)
+    }
+  }
 
   useEffect(() => {
-    const totalAmt = selectedTests.reduce((acc, test) => acc + Number.parseFloat(test.MRP || 0), 0)
-    let discountAmt = 0
+    fetchRefBy()
+    fetchWalletBalance()
+  }, [franchiseurl, storedFranchiseId])
 
-    if (discount.toString().includes("%")) {
-      const percentage = Number.parseFloat(discount.replace("%", ""))
-      discountAmt = (totalAmt * percentage) / 100
-    } else {
-      discountAmt = Number.parseFloat(discount || 0)
-    }
-
-    const netAmt = Math.max(0, totalAmt - discountAmt)
+  useEffect(() => {
+    const totalAmt = selectedTests.reduce((acc, test) => acc + parseFloat(test.MRP || 0), 0)
     setTotal(totalAmt)
-    setNetAmount(netAmt)
-  }, [selectedTests, discount])
 
-  // Check if Quagga is available
-  useEffect(() => {
-    if (typeof window !== "undefined" && !window.Quagga) {
-      setScanError("Quagga library is not loaded. Please install and import Quagga.js")
+    let finalDiscountAmt = 0
+    if (discountPercentage && !isNaN(discountPercentage)) {
+      const percentage = parseFloat(discountPercentage)
+      if (percentage >= 0 && percentage <= 100) {
+        finalDiscountAmt = (totalAmt * percentage) / 100
+        setDiscountAmount(finalDiscountAmt.toFixed(2))
+      }
+    } else if (!discountPercentage) {
+      setDiscountAmount("")
+      finalDiscountAmt = 0
+    } else {
+      finalDiscountAmt = discountAmount ? parseFloat(discountAmount) : 0
     }
-  }, [])
 
+    setNetAmount(Math.max(0, totalAmt - finalDiscountAmt))
+  }, [selectedTests, discountPercentage, discountAmount])
+
+  // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target
-
     if (name === "dateOfBirth") {
-      const calculatedAge = calculateAge(value)
-      setFormData({
-        ...formData,
-        [name]: value,
-        age: calculatedAge,
-      })
+      setFormData({ ...formData, [name]: value, age: calculateAge(value) })
     } else if (name === "age") {
-      // Calculate DOB from age when age is entered
-      const calculatedDOB = calculateDOBFromAge(value)
-      setFormData({
-        ...formData,
-        [name]: value,
-        dateOfBirth: calculatedDOB,
-      })
+      setFormData({ ...formData, [name]: value, dateOfBirth: calculateDOBFromAge(value) })
     } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      })
+      setFormData({ ...formData, [name]: value })
     }
   }
 
-  const handleFileChange = (e) => {
-    setTrfFile(e.target.files[0])
-  }
+  const handleFileChange = (e) => setTrfFile(e.target.files[0])
 
-  const handleToggle = () => {
-    setIsHomeCollection(!isHomeCollection)
-  }
-
-  // Clear barcode function
   const clearBarcode = () => {
     setbarcodeId("")
     setBarcodeValidated(false)
     processedBarcodes.current.clear()
-    showToast("info", "Barcode Cleared", "Barcode input has been cleared.")
+    showToast("warning", "Cleared", "Barcode input cleared")
   }
 
-  // Scanner functions
-  const openScanner = () => {
-    if (scanError) {
-      showToast("error", "Scanner Error", scanError)
-      return
-    }
-
-    setShowScanner(true)
-    setScanResult(null)
-    setScanMessage(null)
-    setScanning(true) // Auto-start scanning when opening
-  }
-
-  const closeScanner = () => {
-    setShowScanner(false)
-    setScanning(false)
-    setScanResult(null)
-    setScanMessage(null)
-  }
-
-  const toggleScanning = () => {
-    setScanMessage(null)
-    setScanning(!scanning)
-  }
-
-  // Modified onBarcodeDetected function - prevent multiple API calls
-  const onBarcodeDetected = async (result) => {
-    const scannedCode = result.codeResult.code
-
-    // Prevent repeated processing of the same barcode
-    if (
-      !scannedCode ||
-      processedBarcodes.current.has(scannedCode) ||
-      isProcessingBarcode.current ||
-      scannedCode === barcodeId
-    ) {
-      return
-    }
-
-    // Mark as processing and add to processed set
-    isProcessingBarcode.current = true
+  const handleScanSuccess = async (scannedCode) => {
+    if (processedBarcodes.current.has(scannedCode)) return
     processedBarcodes.current.add(scannedCode)
 
     try {
-      // Single API call for validation
       const check = await axios.get(`${franchiseurl}check-barcode-exists/?barcodeId=${scannedCode}`)
 
       if (check.data.exists) {
-        showToast("error", "Barcode Check", `Barcode ${scannedCode} already used.`)
+        showToast("danger", "Error", check.data.message || "Barcode already used")
+        processedBarcodes.current.delete(scannedCode) // Allow retry
         return
       }
 
       if (!check.data.valid) {
-        showToast("error", "Barcode Check", check.data.message)
+        showToast("danger", "Error", check.data.message || "Invalid Barcode")
+        processedBarcodes.current.delete(scannedCode) // Allow retry
         return
       }
 
-      // Barcode is valid - set it and close scanner automatically
       setbarcodeId(scannedCode)
       setBarcodeValidated(true)
-      setScanResult({
-        code: scannedCode,
-        format: result.codeResult.format,
-        timestamp: new Date().toLocaleTimeString(),
-      })
-
-      showToast("success", "Barcode Scanned", `Barcode ${scannedCode} captured and validated successfully!`)
-
-      // Auto-close scanner after successful scan
-      setTimeout(() => {
-        closeScanner()
-      }, 1500)
+      showToast("success", "Success", "Barcode validated")
+      setShowScanner(false)
     } catch (error) {
-      console.error("Error checking barcode:", error)
-      showToast("error", "Barcode Check", "Failed to verify barcode.")
-      // Remove from processed set on error so it can be retried
+      const data = error.response?.data;
+      if (data) {
+        showToast("danger", "Error", data.error || data.message || (typeof data === "string" ? data : "Verification failed"));
+      } else {
+        showToast("danger", "Error", error.message || "Verification failed");
+      }
       processedBarcodes.current.delete(scannedCode)
-    } finally {
-      // Reset processing flag
-      isProcessingBarcode.current = false
     }
   }
 
-  const handleSubmit = async (e) => {
+  // Payment Helpers
+  const handleAddPayment = () => {
+    setPayments([...payments, { mode: "Cash", amount: "", referenceNumber: "" }])
+  }
+
+  const handleRemovePayment = (index) => {
+    const newPayments = [...payments]
+    newPayments.splice(index, 1)
+    setPayments(newPayments)
+  }
+
+  const handlePaymentChange = (index, field, value) => {
+    const newPayments = [...payments]
+    newPayments[index][field] = value
+    setPayments(newPayments)
+  }
+
+  const handleRegistration = async (e) => {
     e.preventDefault()
+    if (!barcodeId || !barcodeValidated) return showToast("danger", "Required", "Scan valid barcode first")
+    if (selectedTests.length === 0) return showToast("danger", "Required", "Select at least one test")
+
+    // Validate payments
+    const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+    if (Math.abs(totalPaid - netAmount) > 0.01) {
+      return showToast("danger", "Payment Error", `Total paid (${totalPaid}) must match Net Amount (${netAmount})`)
+    }
 
     try {
-      const patientname = `${formData.title} ${formData.firstName} ${formData.lastName}`.trim()
       const form = new FormData()
-
-      // Patient Info
-      form.append("patientname", patientname)
-      form.append("dateOfBirth", formData.dateOfBirth)
-      form.append("age", formData.age)
-      form.append("gender", formData.gender)
-      form.append("phoneNumber", formData.phoneNumber)
-      form.append("email", formData.email)
-      form.append("city", formData.city)
-      form.append("area", formData.area)
-      form.append("pincode", formData.pincode)
-
-      if (formData.patient_id) {
-        form.append("patient_id", formData.patient_id)
-      }
-
-      // Registration Info
-      form.append("registrationDate", formData.registrationDate)
-      form.append("franchise_id", formData.franchise_id || storedFranchiseId)
-      form.append("referredDoctor", formData.referredDoctor)
-
-      // Billing Info
-      const cleanedTests = selectedTests.map((test) => ({
-        test_id: test.test_id,
-        test_name: test.test_name,
-        MRP: test.MRP,
-      }))
-
-      form.append("testdetails", JSON.stringify(cleanedTests))
+      form.append("patientname", `${formData.title} ${formData.firstName} ${formData.lastName}`.trim())
+      Object.keys(formData).forEach(key => {
+        if (key !== 'title' && key !== 'firstName' && key !== 'lastName') form.append(key, formData[key])
+      })
+      form.append("testdetails", JSON.stringify(selectedTests.map(t => ({ test_id: t.test_id, test_name: t.test_name, MRP: t.MRP }))))
       form.append("total", total)
-      form.append("discount", discount)
+      form.append("discountPercentage", discountPercentage || "0")
+      form.append("discountAmount", discountAmount || "0")
       form.append("netAmount", netAmount)
-      form.append("paymentMode", paymentMode)
-
-      // Segment Info
+      form.append("paymentMode", payments[0].mode)
+      form.append("payments", JSON.stringify(payments))
       form.append("segment", isHomeCollection ? "Home Collection" : "Walkin")
-
-      // Barcode Value
       form.append("barcodeId", barcodeId)
+      if (trfFile) form.append("trf", trfFile)
 
-      // File
-      if (trfFile) {
-        form.append("trf", trfFile)
-      }
+      const response = await axios.post(`${franchiseurl}registerpatientdetails/`, form, { headers: { "Content-Type": "multipart/form-data" } })
 
-      const response = await axios.post(`${franchiseurl}registerpatientdetails/`, form, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-
-      const patient_idReturned = response.data.patient_id
-      showToast("success", "Success!", `Registered successfully with ID ${patient_idReturned}`)
-
-      // Reset form
-      setFormData({
-        title: "",
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        age: "",
-        gender: "",
-        phoneNumber: "",
-        email: "",
-        city: "",
-        area: "",
-        pincode: "",
-        registrationDate: getCurrentDateTime(),
-        referredDoctor: "",
-        patient_id: "",
-      })
-      setTrfFile(null)
-      setSelectedTests([])
-      setDiscount("")
-      setTestSearchQuery("")
-      setIsHomeCollection(false)
-      setPatientSearchQuery("")
-      setbarcodeId("")
-      setBarcodeValidated(false)
-      processedBarcodes.current.clear()
+      setCurrentPatientId(response.data.patient_id)
+      setRegistrationStatus("registered")
+      showToast("success", "Registered", `Patient ID: ${response.data.patient_id}`)
     } catch (err) {
-      console.error("Error submitting registration:", err.response?.data || err.message)
-      const errorMessage = err.response?.data?.error || err.response?.data?.message || "Something went wrong"
-      showToast("error", "Submission Failed", errorMessage)
+      const data = err.response?.data;
+      if (data) {
+        if (data.error) {
+          showToast("danger", "Registration Failed", data.error);
+          if (data.details && typeof data.details === "object") {
+            Object.entries(data.details).forEach(([field, msgs]) => {
+              showToast("danger", `Error in ${field}`, Array.isArray(msgs) ? msgs.join(', ') : String(msgs));
+            });
+          }
+        } else if (data.message) {
+          showToast("danger", "Failed", data.message);
+        } else if (typeof data === "object") {
+          Object.entries(data).forEach(([field, msgs]) => {
+            showToast("danger", `Error in ${field}`, Array.isArray(msgs) ? msgs.join(', ') : String(msgs));
+          });
+        } else {
+          showToast("danger", "Failed", String(data));
+        }
+      } else {
+        showToast("danger", "Failed", err.message || "Registration failed");
+      }
     }
+  }
+
+  const handleBillingConfirmation = async () => {
+    try {
+      const res = await axios.patch(`${franchiseurl}confirm-billing/`, {
+        barcode: barcodeId,
+        billed_amount: netAmount,
+        franchise_id: formData.franchise_id
+      })
+      setRegistrationStatus("billed")
+      setRevenueInfo(res.data)
+      showToast("success", "Confirmed", "Billing confirmed successfully")
+      setTimeout(resetForm, 3000)
+    } catch (err) {
+      const data = err.response?.data;
+      if (data) {
+        showToast("danger", "Failed", data.error || data.message || (typeof data === "string" ? data : "Billing confirmation failed"));
+      } else {
+        showToast("danger", "Failed", err.message || "Billing confirmation failed");
+      }
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      title: "", firstName: "", lastName: "", dateOfBirth: "", age: "", gender: "", phoneNumber: "", email: "", city: "", area: "", pincode: "",
+      registrationDate: getCurrentDateTime(), referredDoctor: "", franchise_id: storedFranchiseId,
+    })
+    setTrfFile(null); setSelectedTests([]); setDiscountPercentage(""); setDiscountAmount(""); setbarcodeId("");
+    setRegistrationStatus("pending"); setRevenueInfo(null); processedBarcodes.current.clear()
   }
 
   const handleSearch = async () => {
-    if (!patientSearchQuery.trim()) {
-      showToast("error", "Invalid Search", "Please enter a Patient ID or Phone Number.")
-      return
-    }
-
+    if (!patientSearchQuery.trim()) return showToast("warning", "Input", "Enter ID or Phone")
     try {
-      const response = await axios.get(`${franchiseurl}search-patient/?query=${patientSearchQuery.trim()}`)
-
-      if (response.data && response.data.patient) {
-        const details = response.data.patient
-        const nameParts = (details.patientname || "").split(" ")
-
-        setFormData({
-          title: nameParts[0] || "",
-          firstName: nameParts[1] || "",
-          lastName: nameParts.slice(2).join(" ") || "",
-          dateOfBirth: details.dateOfBirth || "",
-          age: details.age?.toString() || "",
-          gender: details.gender || "",
-          phoneNumber: details.phoneNumber || "",
-          email: details.email || "",
-          city: details.city || "",
-          area: details.area || "",
-          pincode: details.pincode || "",
-          registrationDate: getCurrentDateTime(),
-          referredDoctor: "",
-          patient_id: details.patient_id || "",
-        })
-
-        showToast("success", "Patient Found", "Patient details loaded successfully.")
+      const res = await axios.get(`${franchiseurl}search-patient/?query=${patientSearchQuery.trim()}`)
+      if (res.data?.patient) {
+        const d = res.data.patient
+        const [t, f, ...l] = (d.patientname || "").split(" ")
+        setFormData(prev => ({
+          ...prev,
+          title: t || "", firstName: f || "", lastName: l.join(" ") || "",
+          dateOfBirth: d.dateOfBirth || "", age: d.age?.toString() || "", gender: d.gender || "",
+          phoneNumber: d.phoneNumber || "", email: d.email || "", city: d.city || "", area: d.area || "", pincode: d.pincode || "",
+          patient_id: d.patient_id
+        }))
+        showToast("success", "Found", "Patient details loaded")
+      } else showToast("warning", "Not Found", "No record found")
+    } catch (e) {
+      const data = e.response?.data;
+      if (data) {
+        showToast("danger", "Error", data.error || data.message || (typeof data === "string" ? data : "Search failed"));
       } else {
-        showToast("info", "Not Found", "No patient record found.")
+        showToast("danger", "Error", e.message || "Search failed");
       }
-    } catch (error) {
-      console.error("Search error:", error)
-      showToast("error", "Search Failed", "Unable to fetch patient details.")
     }
   }
+
+  const fetchPendingRegistrations = async () => {
+    try {
+      setLoadingPending(true)
+      const dateStr = new Date().toISOString().split('T')[0]
+      const res = await axios.get(`${franchiseurl}registrations/?franchise_id=${storedFranchiseId}&date=${dateStr}`)
+      const pending = (res.data || []).filter(r => r.billing_status === 'Pending')
+      setPendingRegistrations(pending)
+      setShowPendingModal(true)
+    } catch (e) {
+      showToast("danger", "Error", "Failed to fetch pending registrations")
+    } finally {
+      setLoadingPending(false)
+    }
+  }
+
+  const handleSelectPending = async (reg) => {
+    try {
+      setbarcodeId(reg.barcode)
+      setBarcodeValidated(true)
+      setDiscountPercentage(reg.discountPercentage || "")
+      setDiscountAmount(reg.discountAmount || "")
+
+      let tests = []
+      try {
+        tests = typeof reg.testdetails === 'string' ? JSON.parse(reg.testdetails) : (reg.testdetails || [])
+        tests = tests.map((t, idx) => ({ ...t, _id: t._id || t.test_id || String(idx), test_name: t.test_name || t.testname }))
+      } catch (e) { }
+      setSelectedTests(tests)
+
+      let pmts = []
+      try { pmts = typeof reg.payments === 'string' ? JSON.parse(reg.payments) : (reg.payments || []) } catch (e) { }
+      if (!pmts.length && reg.paymentMode) pmts = [{ mode: reg.paymentMode, amount: reg.netAmount, referenceNumber: "" }]
+      if (!pmts.length) pmts = [{ mode: "Cash", amount: "", referenceNumber: "" }]
+      setPayments(pmts)
+
+      setRegistrationStatus("registered")
+      setShowPendingModal(false)
+
+      const patientId = reg.patient || reg.patient_id
+      if (patientId) {
+        const res = await axios.get(`${franchiseurl}search-patient/?query=${patientId}`)
+        if (res.data?.patient) {
+          const d = res.data.patient
+          const [t, f, ...l] = (d.patientname || "").split(" ")
+
+          let title = "", firstName = "", lastName = ""
+          if (["Mr", "Mrs", "Ms", "Dr"].includes(t)) {
+            title = t
+            firstName = f || ""
+            lastName = l.join(" ")
+          } else {
+            firstName = t || ""
+            lastName = [f, ...l].filter(Boolean).join(" ")
+          }
+
+          setFormData(prev => ({
+            ...prev,
+            title: title, firstName: firstName, lastName: lastName,
+            dateOfBirth: d.dateOfBirth || "", age: d.age?.toString() || "", gender: d.gender || "",
+            phoneNumber: d.phoneNumber || "", email: d.email || "", city: d.city || "", area: d.area || "", pincode: d.pincode || "",
+            patient_id: d.patient_id,
+            registrationDate: reg.registrationDate ? reg.registrationDate.slice(0, 16) : getCurrentDateTime(),
+            referredDoctor: reg.referredDoctor || "",
+          }))
+        }
+      }
+      showToast("success", "Loaded", `Loaded pending registration for ${reg.barcode}`)
+    } catch (e) {
+      showToast("danger", "Error", "Failed to load full patient details")
+    }
+  }
+
+  const isReadOnly = registrationStatus === "billed"
 
   return (
     <>
       <GlobalStyle />
       <ToastContainer>
-        {toasts.map((toast) => (
-          <Toast key={toast.id} type={toast.type} isExiting={toast.isExiting}>
-            <ToastIcon>{toast.type === "success" ? "✅" : toast.type === "info" ? "ℹ️" : "❌"}</ToastIcon>
-            <ToastContent>
-              <ToastTitle>{toast.title}</ToastTitle>
-              <ToastMessage>{toast.message}</ToastMessage>
-            </ToastContent>
-            <ToastCloseButton onClick={() => removeToast(toast.id)}>✕</ToastCloseButton>
-            <ToastProgress duration={5000} />
+        {toasts.map(t => (
+          <Toast key={t.id} type={t.type}>
+            <div className="icon">{t.type === 'success' ? '✅' : t.type === 'danger' ? '❌' : 'ℹ️'}</div>
+            <div className="content">
+              <div className="title">{t.title}</div>
+              <div className="message">{t.message}</div>
+            </div>
           </Toast>
         ))}
       </ToastContainer>
 
-      {/* Scanner Modal */}
-      {showScanner && (
-        <ScannerOverlay>
-          <ScannerModal>
-            <ScannerHeader>
-              <ScannerTitle>Barcode Scanner</ScannerTitle>
-              <CloseButton onClick={closeScanner}>✕</CloseButton>
-            </ScannerHeader>
+      {showScanner && <BarcodeScanner onClose={() => setShowScanner(false)} onScanSuccess={handleScanSuccess} />}
+      <RefBy show={showRefByModal} setShow={setShowRefByModal} onRefByAdded={() => {
+        showToast("success", "Added", "New doctor added")
+        fetchRefBy()
+      }} />
 
-            {scanMessage && <ScanMessage>{scanMessage}</ScanMessage>}
-
-            <ScannerControls>
-              <ScannerControlButton onClick={toggleScanning} $scanning={scanning}>
-                {scanning ? "Stop Scanning" : "Start Scanning"}
-              </ScannerControlButton>
-            </ScannerControls>
-
-            {scanning && <Scanner onDetected={onBarcodeDetected} />}
-
-            {scanResult && (
-              <ScanResult>
-                <ScanResultCode>{scanResult.code}</ScanResultCode>
-                <ScanResultFormat>{scanResult.format}</ScanResultFormat>
-                <div style={{ fontSize: "12px", color: "#666", marginTop: "8px" }}>
-                  Scanned at: {scanResult.timestamp}
-                </div>
-              </ScanResult>
+      {showPendingModal && (
+        <ModalOverlay onClick={() => setShowPendingModal(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Today's Pending Registrations</h3>
+              <Button type="button" variant="outline" onClick={() => setShowPendingModal(false)}>Close</Button>
+            </div>
+            {pendingRegistrations.length === 0 ? (
+              <p>No pending registrations for today.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: '#f3f4f6', textAlign: 'left' }}>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>Barcode</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>Patient Name</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>Phone</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>Net Amount</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRegistrations.map(reg => (
+                    <tr key={reg.barcode} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '0.75rem' }}>{reg.barcode}</td>
+                      <td style={{ padding: '0.75rem' }}>{reg.patient_info?.patientname || 'N/A'}</td>
+                      <td style={{ padding: '0.75rem' }}>{reg.patient_info?.phoneNumber || 'N/A'}</td>
+                      <td style={{ padding: '0.75rem' }}>₹{reg.netAmount}</td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <Button type="button" variant="primary" style={{ padding: '4px 12px' }} onClick={() => handleSelectPending(reg)}>Select</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-          </ScannerModal>
-        </ScannerOverlay>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
-      <FormWrapper>
-        <h3>Patient Registration & Billing</h3>
-        <Form onSubmit={handleSubmit} encType="multipart/form-data">
-          <FormSection delay="0s">
-            <SectionTitle icon="🔍">Search Existing Patient</SectionTitle>
-            <SearchRow>
-              <SearchCol>
-                <FormGroup>
-                  <label>Search by Patient ID / Phone Number</label>
-                  <Input
-                    type="text"
-                    placeholder="Enter Patient ID (e.g. SDF001) or Phone Number"
-                    value={patientSearchQuery}
-                    onChange={(e) => setPatientSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        handleSearch()
-                      }
-                    }}
-                  />
-                </FormGroup>
-              </SearchCol>
+      <LayoutWrapper>
+        <Card>
+          <Header>
+            <TitleGroup>
+              <MainTitle>Patient Registration</MainTitle>
+              <SubTitle>Lab Operations / New Entry</SubTitle>
+            </TitleGroup>
 
-              <ButtonCol>
-                <SearchButton type="button" onClick={handleSearch}>
-                  Search Patient
-                </SearchButton>
-              </ButtonCol>
-            </SearchRow>
-          </FormSection>
-
-          {/* Separate Barcode Section */}
-          <FormSection delay="0.05s">
-            <BarcodeSection>
-              <SectionTitle icon="📱">Barcode Scanner</SectionTitle>
-              <BarcodeRow>
-                <BarcodeInputWrapper>
-                  <FormGroup>
-                    <label>Barcode Value</label>
-                    <Input
-                      type="text"
-                      disabled
-                      className="barcode-input"
-                      placeholder="Scan barcode or enter manually"
-                      value={barcodeId}
-                      onChange={(e) => setbarcodeId(e.target.value)}
-                    />
-                  </FormGroup>
-                </BarcodeInputWrapper>
-
-                <BarcodeActions>
-                  {barcodeId && (
-                    <BarcodeStatus isValid={barcodeValidated}>
-                      {barcodeValidated ? "Validated" : "Pending"}
-                    </BarcodeStatus>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              {walletBalance !== null && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{
+                    background: walletBalance < 1000 ? '#FEF2F2' : '#F0FDF4',
+                    color: walletBalance < 1000 ? '#DC2626' : '#16A34A',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    fontWeight: '600',
+                    border: `1px solid ${walletBalance < 1000 ? '#FCA5A5' : '#86EFAC'}`
+                  }}>
+                    Wallet Balance: ₹{walletBalance.toFixed(2)}
+                  </div>
+                  {walletBalance < 1000 && (
+                    <Button type="button" variant="danger" onClick={() => navigate('/PaymentGateway')}>
+                      Recharge Wallet
+                    </Button>
                   )}
-                  <ScannerButton type="button" onClick={openScanner} title="Scan Barcode">
-                    <ScannerIcon />
-                  </ScannerButton>
-                  {barcodeId && (
-                    <ClearButton type="button" onClick={clearBarcode}>
-                      Clear
-                    </ClearButton>
-                  )}
-                </BarcodeActions>
-              </BarcodeRow>
-            </BarcodeSection>
-          </FormSection>
+                </div>
+              )}
+              <Button type="button" variant="outline" onClick={fetchPendingRegistrations}>
+                {loadingPending ? 'Loading...' : 'Pending Registrations'}
+              </Button>
+            </div>
 
-          <FormSection delay="0.1s">
-            <SectionTitle icon="👤">Patient Information</SectionTitle>
-            <Row>
-              <Col>
-                <FormGroup>
-                  <label>Title</label>
-                  <Select name="title" value={formData.title} onChange={handleChange} required>
-                    <option value="">Select Title</option>
-                    <option value="Mr">Mr</option>
-                    <option value="Mrs">Mrs</option>
-                    <option value="Ms">Ms</option>
-                    <option value="Dr">Dr</option>
-                  </Select>
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>First Name</label>
-                  <Input
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    placeholder="Enter first name"
-                    required
-                  />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Last Name</label>
-                  <Input
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    placeholder="Enter last name"
-                    required
-                  />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Date of Birth</label>
-                  <Input
-                    name="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    max={new Date().toISOString().split("T")[0]}
-                  />
-                  {formData.age && <AgeIndicator>Age: {formData.age}</AgeIndicator>}
-                </FormGroup>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col>
-                <FormGroup>
-                  <label>Age (Years)</label>
-                  <Input
-                    name="age"
-                    type="number"
-                    value={formData.age}
-                    onChange={handleChange}
-                    placeholder="Enter age or select DOB"
-                    min="0"
-                    max="150"
-                    required
-                  />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Gender</label>
-                  <Select name="gender" value={formData.gender} onChange={handleChange} required>
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </Select>
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Phone Number</label>
-                  <Input
-                    name="phoneNumber"
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={handleChange}
-                    placeholder="Enter phone number"
-                    required
-                  />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Email</label>
-                  <Input
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter email address"
-                  />
-                </FormGroup>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col>
-                <FormGroup>
-                  <label>City</label>
-                  <Input name="city" value={formData.city} onChange={handleChange} placeholder="Enter city" required />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Area</label>
-                  <Input name="area" value={formData.area} onChange={handleChange} placeholder="Enter area" />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Pincode</label>
-                  <Input
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleChange}
-                    placeholder="Enter pincode"
-                    pattern="[0-9]{6}"
-                    title="Please enter a valid 6-digit pincode"
-                  />
-                </FormGroup>
-              </Col>
-            </Row>
-          </FormSection>
-
-          <FormSection delay="0.2s">
-            <SectionTitle icon="📝">Registration Details</SectionTitle>
-            <Row>
-              <Col>
-                <FormGroup>
-                  <label>Registration Date</label>
-                  <Input type="datetime-local" name="registrationDate" value={formData.registrationDate} readOnly />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Referred Doctor</label>
-                  <Input
-                    type="text"
-                    name="referredDoctor"
-                    value={formData.referredDoctor}
-                    onChange={handleChange}
-                    placeholder="Enter referred doctor"
-                  />
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Upload TRF Document</label>
-                  <Input type="file" onChange={handleFileChange} />
-                  {trfFile && (
-                    <div style={{ marginTop: "5px", fontSize: "0.75rem", color: "#2d3748" }}>
-                      Selected: {trfFile.name}
-                    </div>
-                  )}
-                </FormGroup>
-              </Col>
-            </Row>
-
-            <Row>
-              <Col>
-                <FormGroup>
-                  <label>Collection Type</label>
-                  <ToggleContainer>
-                    <ToggleLabel isActive={!isHomeCollection}>Walk-in</ToggleLabel>
-                    <ToggleSwitch isOn={isHomeCollection} onClick={handleToggle}>
-                      <ToggleSlider isOn={isHomeCollection} />
-                    </ToggleSwitch>
-                    <ToggleLabel isActive={isHomeCollection}>Home Collection</ToggleLabel>
-                  </ToggleContainer>
-                </FormGroup>
-              </Col>
-              <Col>
-                <FormGroup>
-                  <label>Current Segment</label>
-                  <SegmentIndicator isHomeCollection={isHomeCollection}>
-                    {isHomeCollection ? "Home Collection" : "Walk-in"}
-                  </SegmentIndicator>
-                </FormGroup>
-              </Col>
-            </Row>
-          </FormSection>
-
-          <InfoSection>
-            <InfoTitle>Search & Add Tests</InfoTitle>
-            <FormGroup style={{ maxWidth: "350px", marginBottom: "1rem" }}>
-              <h4>Search by Test Name</h4>
-              <Input
-                type="text"
-                placeholder="Enter test name"
-                value={testSearchQuery}
-                onChange={(e) => setTestSearchQuery(e.target.value)}
-              />
-            </FormGroup>
-
-            {testSearchQuery && (
-              <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #ccc", borderRadius: "5px" }}>
-                {testList
-                  .filter((test) => test.test_name?.toLowerCase().includes(testSearchQuery.toLowerCase()))
-                  .map((test, index) => (
-                    <div
-                      key={index}
-                      onClick={() => {
-                        if (selectedTests.some((t) => t._id === test._id)) {
-                          alert("You have already selected this test.")
-                        } else {
-                          const updatedTests = [...selectedTests, test]
-                          setSelectedTests(updatedTests)
-                        }
-                        setTestSearchQuery("")
-                      }}
-                      style={{
-                        padding: "8px",
-                        cursor: "pointer",
-                        borderBottom: "1px solid #eee",
-                        backgroundColor: "#f9f9f9",
-                        color: "black",
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      {test.test_name}
-                    </div>
-                  ))}
-              </div>
+            {registrationStatus !== 'pending' && (
+              <StatusBanner status={registrationStatus}>
+                {registrationStatus === 'registered' ? '✅ Patient Registered - Confirm Billing' : '💰 Transaction Complete'}
+              </StatusBanner>
             )}
-          </InfoSection>
+          </Header>
 
-          {selectedTests.length > 0 && (
-            <InfoSection>
-              <InfoTitle>Added Tests</InfoTitle>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ backgroundColor: "#f0f0f0" }}>
-                      <th style={{ padding: "8px", border: "1px solid #ddd", fontSize: "0.875rem" }}>Test Name</th>
-                      <th style={{ padding: "8px", border: "1px solid #ddd", fontSize: "0.875rem" }}>MRP</th>
-                      <th style={{ padding: "8px", border: "1px solid #ddd", fontSize: "0.875rem" }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedTests.map((test, index) => (
-                      <tr key={index}>
-                        <td style={{ padding: "8px", border: "1px solid #ddd", fontSize: "0.875rem" }}>
-                          {test.test_name}
-                        </td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd", fontSize: "0.875rem" }}>{test.MRP}</td>
-                        <td style={{ padding: "8px", border: "1px solid #ddd", textAlign: "center" }}>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setSelectedTests((prevTests) => prevTests.filter((t) => t._id !== test._id))
-                            }}
-                            style={{
-                              padding: "4px 8px",
-                              backgroundColor: "#e53e3e",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "4px",
-                              cursor: "pointer",
-                              fontSize: "0.75rem",
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <Content>
+            <form onSubmit={handleRegistration}>
 
-              <div
-                style={{
-                  marginTop: "12px",
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "15px",
-                  alignItems: "center",
-                  fontSize: "0.875rem",
-                }}
-              >
-                <div>
-                  <strong>Total: ₹{total.toFixed(2)}</strong>
-                </div>
-                <div>
-                  <strong>Discount:</strong>
-                  <input
-                    type="text"
-                    placeholder="e.g. 10 or 10%"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    style={{ marginLeft: "8px", padding: "4px", width: "70px", fontSize: "0.875rem" }}
-                  />
-                </div>
-                <div>
-                  <strong>Net Amount: ₹{netAmount.toFixed(2)}</strong>
-                </div>
-                <div>
-                  <strong>Payment Mode:</strong>
-                  <select
-                    value={paymentMode}
-                    onChange={(e) => setPaymentMode(e.target.value)}
-                    style={{
-                      marginLeft: "8px",
-                      padding: "4px",
-                      borderRadius: "4px",
-                      border: "1px solid #ccc",
-                      minWidth: "80px",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    <option value="Cash">Cash</option>
-                    <option value="Credit">Credit</option>
-                  </select>
-                </div>
-              </div>
-            </InfoSection>
-          )}
+              {/* 1. Search & Barcode */}
+              <Section>
+                <Grid>
+                  <Col span={5}>
+                    <SectionHeader>Patient Search</SectionHeader>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                      <FormGroup style={{ flex: 1 }}>
+                        <Label>Search ID / Phone</Label>
+                        <Input
+                          value={patientSearchQuery}
+                          onChange={e => setPatientSearchQuery(e.target.value)}
+                          placeholder="Enter details..."
+                          disabled={isReadOnly}
+                        />
+                      </FormGroup>
+                      <Button type="button" variant="primary" onClick={handleSearch} disabled={isReadOnly}>
+                        <Icons.Search />
+                      </Button>
+                    </div>
+                  </Col>
 
-          <FormSection delay="0.3s">
-            <SearchButton style={{ float: "right", marginRight: "8px" }} type="submit">
-              Registration & Billing
-            </SearchButton>
-          </FormSection>
-        </Form>
-      </FormWrapper>
+                  <Col span={7}>
+                    <SectionHeader>Sample Identification</SectionHeader>
+                    <BarcodeCard>
+                      <div className="input-wrapper">
+                        <FormGroup>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Label>Barcode</Label>
+                            {barcodeValidated && <ScanStatus isValid>Verified</ScanStatus>}
+                          </div>
+                          <ScannerInput
+                            value={barcodeId}
+                            readOnly
+                            placeholder="Waiting for scan..."
+                            isValid={barcodeValidated}
+                          />
+                        </FormGroup>
+                      </div>
+                      <Button type="button" variant="success" onClick={() => setShowScanner(true)} disabled={isReadOnly}>
+                        <Icons.Scan /> Scan
+                      </Button>
+                      {barcodeId && (
+                        <Button type="button" variant="outline" onClick={clearBarcode} disabled={isReadOnly}>
+                          Reset
+                        </Button>
+                      )}
+                    </BarcodeCard>
+                  </Col>
+                </Grid>
+              </Section>
+
+              {/* 2. Demographics */}
+              <Section>
+                <SectionHeader>Patient Details</SectionHeader>
+                <Grid>
+                  <Col span={2} tablet={3}>
+                    <FormGroup>
+                      <Label>Title</Label>
+                      <Select name="title" value={formData.title} onChange={handleChange} required disabled={isReadOnly}>
+                        <option value="">Select</option>
+                        <option value="Mr">Mr</option>
+                        <option value="Mrs">Mrs</option>
+                        <option value="Ms">Ms</option>
+                        <option value="Dr">Dr</option>
+                      </Select>
+                    </FormGroup>
+                  </Col>
+                  <Col span={5} tablet={9}>
+                    <FormGroup>
+                      <Label>First Name</Label>
+                      <Input name="firstName" value={formData.firstName} onChange={handleChange} required disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  <Col span={5}>
+                    <FormGroup>
+                      <Label>Last Name</Label>
+                      <Input name="lastName" value={formData.lastName} onChange={handleChange} required disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+
+                  <Col span={3}>
+                    <FormGroup>
+                      <Label>DOB</Label>
+                      <Input type="date" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  <Col span={2}>
+                    <FormGroup>
+                      <Label>Age</Label>
+                      <Input type="number" name="age" value={formData.age} onChange={handleChange} required disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  <Col span={3}>
+                    <FormGroup>
+                      <Label>Gender</Label>
+                      <Select name="gender" value={formData.gender} onChange={handleChange} required disabled={isReadOnly}>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </Select>
+                    </FormGroup>
+                  </Col>
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>Phone</Label>
+                      <Input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>City</Label>
+                      <Input name="city" value={formData.city} onChange={handleChange} required disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>District</Label>
+                      <Input name="area" value={formData.area} onChange={handleChange} disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>Pincode</Label>
+                      <Input name="pincode" value={formData.pincode} onChange={handleChange} disabled={isReadOnly} />
+                    </FormGroup>
+                  </Col>
+                  {isHomeCollection && (
+                    <Col span={12}>
+                      <FormGroup>
+                        <Label>Address</Label>
+                        <Input name="address" value={formData.address} onChange={handleChange} required disabled={isReadOnly} />
+                      </FormGroup>
+                    </Col>
+                  )}
+                </Grid>
+              </Section>
+
+              {/* 3. Visit Info */}
+              <Section>
+                <SectionHeader>Visit Information</SectionHeader>
+                <Grid>
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>Referred By</Label>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <Input
+                          list="refByOptions"
+                          name="referredDoctor"
+                          value={formData.referredDoctor}
+                          onChange={handleChange}
+                          placeholder="Doctor Name"
+                          disabled={isReadOnly}
+                          required
+                        />
+                        <datalist id="refByOptions">
+                          {refByList.map((doc, idx) => (
+                            <option key={idx} value={doc.name} />
+                          ))}
+                        </datalist>
+                        <Button type="button" variant="primary" onClick={() => setShowRefByModal(true)} disabled={isReadOnly} style={{ padding: '0.5rem 1rem' }}>
+                          +
+                        </Button>
+                      </div>
+                    </FormGroup>
+                  </Col>
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>Upload TRF</Label>
+                      <Input type="file" onChange={handleFileChange} disabled={isReadOnly} style={{ padding: '0.5rem' }} />
+                    </FormGroup>
+                  </Col>
+
+                  <Col span={4}>
+                    <FormGroup>
+                      <Label>Collection Type</Label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', height: '42px' }}>
+                        <span style={{ fontSize: '0.9rem', color: !isHomeCollection ? theme.colors.text : theme.colors.textLight }}>Walk-in</span>
+                        <ToggleSwitch isOn={isHomeCollection} onClick={() => !isReadOnly && setIsHomeCollection(!isHomeCollection)}>
+                          <div />
+                        </ToggleSwitch>
+                        <span style={{ fontSize: '0.9rem', color: isHomeCollection ? theme.colors.text : theme.colors.textLight }}>Home Visit</span>
+                      </div>
+                    </FormGroup>
+                  </Col>
+                </Grid>
+              </Section>
+
+              {/* 4. Tests & Billing */}
+              <Section>
+                <Grid>
+                  {/* Left: Test Selection */}
+                  <Col span={7}>
+                    <SectionHeader>Test Selection</SectionHeader>
+                    <FormGroup style={{ marginBottom: '1rem' }}>
+                      <TestSearchWrapper>
+                        <Input
+                          placeholder="Search test name..."
+                          value={testSearchQuery}
+                          onChange={e => setTestSearchQuery(e.target.value)}
+                          disabled={isReadOnly}
+                        />
+                        {testSearchQuery && !isReadOnly && (
+                          <DropdownList>
+                            {testList
+                              .filter(t => t.test_name?.toLowerCase().includes(testSearchQuery.toLowerCase()))
+                              .map((test) => (
+                                <DropdownItem key={test._id} onClick={() => {
+                                  if (!selectedTests.find(t => t._id === test._id)) setSelectedTests([...selectedTests, test])
+                                  setTestSearchQuery("")
+                                }}>
+                                  <div style={{ fontWeight: 600 }}>{test.test_name}</div>
+                                  <div style={{ fontSize: '0.8rem', color: theme.colors.success }}>₹{test.MRP}</div>
+                                </DropdownItem>
+                              ))}
+                          </DropdownList>
+                        )}
+                      </TestSearchWrapper>
+                    </FormGroup>
+
+                    {selectedTests.length > 0 && (
+                      <TableWrapper>
+                        <Table>
+                          <thead>
+                            <tr>
+                              <th>Test Name</th>
+                              <th>Price</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedTests.map((test) => (
+                              <tr key={test._id}>
+                                <td>{test.test_name}</td>
+                                <td>₹{test.MRP}</td>
+                                <td>
+                                  <Button type="button" variant="danger" disabled={isReadOnly} style={{ padding: '4px 8px' }} onClick={() => setSelectedTests(s => s.filter(t => t._id !== test._id))}>
+                                    <Icons.Trash />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      </TableWrapper>
+                    )}
+                  </Col>
+
+                  {/* Right: Billing Summary */}
+                  <Col span={5}>
+                    <SectionHeader>Billing Summary</SectionHeader>
+                    <SummaryCard>
+                      <FinancialRow>
+                        <span className="label">Subtotal</span>
+                        <span className="value">₹{total.toFixed(2)}</span>
+                      </FinancialRow>
+
+                      <FinancialRow>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span className="label">Discount %</span>
+                          <Input
+                            type="number"
+                            style={{ width: '60px', padding: '4px 8px', height: 'auto' }}
+                            value={discountPercentage}
+                            onChange={e => setDiscountPercentage(e.target.value)}
+                            disabled={isReadOnly}
+                          />
+                        </div>
+                        <span className="value" style={{ color: theme.colors.danger }}>- ₹{discountAmount || "0.00"}</span>
+                      </FinancialRow>
+
+                      {/* Multiple Payments UI */}
+                      <div style={{ marginTop: '1rem', borderTop: `1px dashed ${theme.colors.border}`, paddingTop: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: theme.colors.textLight }}>Payments</span>
+                          {!isReadOnly && (
+                            <Button type="button" variant="outline" style={{ padding: '2px 8px', fontSize: '0.8rem' }} onClick={handleAddPayment}>
+                              + Add
+                            </Button>
+                          )}
+                        </div>
+
+                        {payments.map((payment, index) => (
+                          <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                            <Select
+                              style={{ width: '80px', padding: '4px', height: '32px', fontSize: '0.85rem' }}
+                              value={payment.mode}
+                              onChange={e => handlePaymentChange(index, 'mode', e.target.value)}
+                              disabled={isReadOnly}
+                            >
+                              <option value="Cash">Cash</option>
+                              <option value="UPI">UPI</option>
+                              <option value="Due">Due</option>
+                            </Select>
+                            <Input
+                              type="number"
+                              placeholder="Amt"
+                              style={{ width: '70px', padding: '4px', height: '32px', fontSize: '0.85rem' }}
+                              value={payment.amount}
+                              onChange={e => handlePaymentChange(index, 'amount', e.target.value)}
+                              disabled={isReadOnly}
+                            />
+                            {payment.mode === 'UPI' && (
+                              <Input
+                                placeholder="Ref #"
+                                style={{ flex: 1, padding: '4px', height: '32px', fontSize: '0.85rem' }}
+                                value={payment.referenceNumber}
+                                onChange={e => handlePaymentChange(index, 'referenceNumber', e.target.value)}
+                                disabled={isReadOnly}
+                                required
+                              />
+                            )}
+                            {!isReadOnly && payments.length > 1 && (
+                              <Button type="button" variant="danger" style={{ padding: '4px', height: '32px', width: '32px' }} onClick={() => handleRemovePayment(index)}>
+                                <Icons.Trash />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <FinancialRow className="total">
+                        <span>Net Payable</span>
+                        <span>₹{netAmount.toFixed(2)}</span>
+                      </FinancialRow>
+
+                      <div style={{ marginTop: '2rem', display: 'grid', gap: '1rem' }}>
+                        {registrationStatus === 'pending' && (
+                          <Button type="submit" variant="primary" style={{ width: '100%' }}>
+                            Register Patient
+                          </Button>
+                        )}
+
+                        {registrationStatus === 'registered' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <Button type="submit" variant="primary" style={{ width: '100%' }}>
+                              Update Registration
+                            </Button>
+                            <Button type="button" variant="success" style={{ width: '100%' }} onClick={handleBillingConfirmation}>
+                              Confirm Payment
+                            </Button>
+                          </div>
+                        )}
+
+                        {registrationStatus === 'billed' && (
+                          <Button type="button" variant="primary" style={{ width: '100%' }} onClick={resetForm}>
+                            Start New Registration
+                          </Button>
+                        )}
+                      </div>
+                    </SummaryCard>
+
+                    {revenueInfo && (
+                      <div style={{ marginTop: '1rem', padding: '1rem', background: '#EFF6FF', borderRadius: '8px', fontSize: '0.85rem' }}>
+                        <strong>Transaction Details:</strong><br />
+                        Franchise Share: ₹{revenueInfo.franchise_share?.toFixed(2)}<br />
+                        Monthly Total: ₹{revenueInfo.monthly_total?.toFixed(2)}
+                      </div>
+                    )}
+                  </Col>
+                </Grid>
+              </Section>
+
+            </form >
+          </Content >
+        </Card >
+      </LayoutWrapper >
     </>
   )
 }

@@ -11,7 +11,7 @@ import FooterImage from "./images/Footer.png";
 import Vijayan from "./images/Vijayan.png";
 
 // Base URL - you'll need to set this to your actual API base URL
-  const franchiseurl = process.env.REACT_APP_BACKEND_FRANCHISE_BASE_URL
+const franchiseurl = process.env.REACT_APP_BACKEND_FRANCHISE_BASE_URL
 
 // Styled Components (keeping exactly the same)
 const Container = styled.div`
@@ -258,7 +258,8 @@ const BarcodeText = styled.div`
 `
 
 const PatientReportTable = () => {
-  const [selectedDate, setSelectedDate] = useState("")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
   const [patients, setPatients] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -280,21 +281,21 @@ const PatientReportTable = () => {
   }, [])
 
   useEffect(() => {
-    setSelectedDate(getCurrentDate())
-    fetchPatients()
+    setFromDate(getCurrentDate())
+    setToDate(getCurrentDate())
   }, [])
 
   useEffect(() => {
-    if (selectedDate) {
+    if (fromDate && toDate && franchiseId) {
       fetchPatients()
     }
-  }, [selectedDate])
+  }, [fromDate, toDate, franchiseId])
 
   const fetchPatients = async () => {
     setLoading(true)
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/get_test_values/?date=${selectedDate}&franchise_id=${franchiseId}`,
+        `http://127.0.0.1:8190/_b_a_c_k_e_n_d/franchiseapp/get_test_values/?from_date=${fromDate}&to_date=${toDate}&franchise_id=${franchiseId}`,
       )
       if (!response.ok) {
         throw new Error("Failed to fetch data")
@@ -302,12 +303,12 @@ const PatientReportTable = () => {
       const result = await response.json()
       // Extract the test data from the nested structure
       const testData = result.test_data?.data || []
-      // Add patient_id and barcode to each test item
+      // The backend returns an array of tests directly with patient details on each
       const enrichedData = testData.map((item) => ({
         ...item,
-        patient_id: result.patient_id,
-        barcode: result.barcode,
-        patientname: result.patientname,
+        patient_id: item.patient_id,
+        barcode: item.barcode,
+        patientname: item.patientname,
       }))
       setPatients(enrichedData)
     } catch (error) {
@@ -322,9 +323,9 @@ const PatientReportTable = () => {
   const handlePrint = async (patient, withLetterpad = true) => {
     try {
       setLoading(true)
-      // Fetch detailed patient data using the same API structure
+      // Fetch detailed patient data using the same API structure (fix port 8000 -> 8190 and send barcode)
       const response = await axios.get(
-        `http://127.0.0.1:8000/get_patient_by_barcode/?date=${selectedDate}&franchise_id=${franchiseId}`,
+        `http://127.0.0.1:8190/_b_a_c_k_e_n_d/franchiseapp/get_patient_by_barcode/?date=${patient.date}&franchise_id=${franchiseId}&barcode=${patient.barcode}`,
       )
       const patientDetails = response.data
 
@@ -739,7 +740,7 @@ const PatientReportTable = () => {
 
         // Group Tests by Department
         const testsByDepartment = flattenedPatientDetails.testdetails.reduce((acc, test) => {
-          ;(acc[test.department] = acc[test.department] || []).push(test)
+          ; (acc[test.department] = acc[test.department] || []).push(test)
           return acc
         }, {})
 
@@ -945,8 +946,10 @@ const PatientReportTable = () => {
         <Subtitle>Comprehensive patient information in tabular format</Subtitle>
       </Header>
       <DatePickerContainer>
-        <DateLabel htmlFor="reportDate">Report Date:</DateLabel>
-        <DateInput id="reportDate" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+        <DateLabel htmlFor="fromDate">From:</DateLabel>
+        <DateInput id="fromDate" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        <DateLabel htmlFor="toDate">To:</DateLabel>
+        <DateInput id="toDate" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
       </DatePickerContainer>
       {loading ? (
         <LoadingSpinner />
@@ -955,7 +958,7 @@ const PatientReportTable = () => {
           <EmptyStateIcon>📋</EmptyStateIcon>
           <EmptyStateTitle>No Patients Found</EmptyStateTitle>
           <EmptyStateText>
-            No patient reports available for the selected date. Please try a different date.
+            No patient reports available for the selected dates. Please try a different date range.
           </EmptyStateText>
         </EmptyState>
       ) : (
