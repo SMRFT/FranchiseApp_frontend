@@ -1,691 +1,184 @@
 import React, { useState } from 'react';
-import styled, { keyframes, css, createGlobalStyle } from 'styled-components';
+import styled, { keyframes, createGlobalStyle } from 'styled-components';
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
+import axios from "axios";
 import 'react-toastify/dist/ReactToastify.css';
-import logo from './images/logo.png';
+import logo from './images/logo.png'; // Update with correct path
 
-// Global Styles
+// ---- GLOBAL STYLES ----
+
 const GlobalStyle = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&family=Pacifico&display=swap');
-
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
+  @import url('https://fonts.googleapis.com/css?family=Inter:400,700&display=swap');
   body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Roboto', sans-serif;
-    background-color: white;
-    color: white;
-  }
-
-  button {
-    background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
-    color: white;
-    font-family: 'Pacifico', cursive;
-    border: none;
-    border-radius: 15px;
-    padding: 10px 16px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background 0.3s ease;
-    margin-top: 20px;
-  }
-
-  button:hover {
-    background: linear-gradient(135deg, rgb(85, 156, 175), rgb(38, 136, 158));
-  }
-
-  label {
-    display: block;
-    font-weight: 600;
-    color: white;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-    text-transform: capitalize;
-  }
-
-  h3 {
-    font-family: 'Pacifico', cursive;
-    color: white;
-    font-size: 30px;
-    margin: 0;
-    text-align: center;
-  }
-
-  h4 {
-    display: block;
-    color: #4B9EB0;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-    font-family: 'Pacifico', cursive;
-  }
-
-  h5 {
-    color: white;
-    font-size: 1.3rem;
-    font-weight: 600;
-    font-family: 'Pacifico', cursive;
-    margin: 30px 0 20px 0;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #ecf0f1;
-    display: flex;
-    align-items: center;
-    position: relative;
-  }
-
-  table {
-    background-color: white;
-    width: 100%;
-    border-collapse: collapse;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  th {
-    color: #4B9EB0;
-    font-weight: bold;
-    padding: 12px 16px;
-    text-align: left;
-    background-color: #f0f8fa;
-  }
-
-  td {
-    color: black;
-    padding: 12px 16px;
-    border-top: 1px solid #ddd;
-  }
-
-  strong {
-    color: black;
-  }
-
-  /* Custom Toastify Styles */
-  .Toastify__toast-container {
-    font-family: 'Roboto', sans-serif;
-  }
-
-  .Toastify__toast--success {
-    background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
-  }
-
-  .Toastify__toast--error {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-  }
-
-  .Toastify__toast--info {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-  }
-
-  .Toastify__progress-bar--success {
-    background: rgba(255, 255, 255, 0.7);
-  }
-
-  .Toastify__progress-bar--error {
-    background: rgba(255, 255, 255, 0.7);
+    font-family: 'Inter', sans-serif;
+    background: #f8fafc;
   }
 `;
 
-// Breakpoints for responsive design
-const breakpoints = {
-  xs: '320px',
-  sm: '576px',
-  md: '768px',
-  lg: '992px',
-  xl: '1200px'
-};
+// ---- ANIMATIONS ----
+const float = keyframes`0% {transform:translateY(0);} 50% {transform:translateY(-6px);} 100% {transform:translateY(0);}`;
+const fadeIn = keyframes`from {opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);}`;
+const gradientBg = keyframes`0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}`;
 
-const media = {
-  xs: (...args) => css`@media (max-width: ${breakpoints.xs}) { ${css(...args)} }`,
-  sm: (...args) => css`@media (max-width: ${breakpoints.sm}) { ${css(...args)} }`,
-  md: (...args) => css`@media (max-width: ${breakpoints.md}) { ${css(...args)} }`,
-  lg: (...args) => css`@media (max-width: ${breakpoints.lg}) { ${css(...args)} }`,
-  xl: (...args) => css`@media (max-width: ${breakpoints.xl}) { ${css(...args)} }`,
-  minSm: (...args) => css`@media (min-width: ${breakpoints.sm}) { ${css(...args)} }`,
-  minMd: (...args) => css`@media (min-width: ${breakpoints.md}) { ${css(...args)} }`,
-  minLg: (...args) => css`@media (min-width: ${breakpoints.lg}) { ${css(...args)} }`,
-  landscape: (...args) => css`@media (orientation: landscape) and (max-height: 600px) { ${css(...args)} }`
-};
-
-// Keyframe animations
-const fadeInUp = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(30px);
+// ---- STYLED COMPONENTS ----
+const PageContainer = styled.div`
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(-45deg,#e0f2f1,#eefcfc,#6FB1C4,#4B9EB0);
+  background-size:400% 400%;animation:${gradientBg} 15s ease infinite;
+  position:relative;overflow:hidden;padding:20px;
+  &::before, &::after {
+    content:'';position:absolute;border-radius:50%;filter:blur(60px);z-index:0;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  &::before {width:400px;height:400px;background:rgba(111,177,196,0.18);top:-100px;left:-100px;}
+  &::after {width:300px;height:300px;background:rgba(75,158,176,0.16);bottom:-60px;right:-50px;}
 `;
-
-const float = keyframes`
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+const Card = styled.div`
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);
+  border-radius:24px;box-shadow:0 20px 40px rgba(0,0,0,0.09);
+  max-width:400px;width:100%;padding:3rem;animation:${fadeIn} .7s;
+  display:flex;flex-direction:column;align-items:center;z-index:1;
 `;
-
-const gradientShift = keyframes`
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+const LogoWrapper = styled.div`
+  width:80px;height:80px;background:linear-gradient(135deg,#fff,#f0f9ff);
+  border-radius:20px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:1.5rem;box-shadow:0 10px 25px rgba(75,158,176,0.12);
+  animation:${float} 3s ease-in-out infinite;
+  img{width:60%;height:auto;object-fit:contain;}
 `;
-
-const pulse = keyframes`
-  0% {
-    box-shadow: 0 0 0 0 rgba(111, 177, 196, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(111, 177, 196, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(111, 177, 196, 0);
-  }
+const HeaderGroup = styled.div`
+  text-align:center;margin-bottom:2rem;
 `;
-
-const slideInMobile = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(100px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+const WelcomeText = styled.h1`
+  font-weight:800;font-size:1.7rem;color:#2d3748;margin-bottom:.5rem;letter-spacing:-0.5px;
 `;
-
-// Styled components
-const Container = styled.div`
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(-45deg, #6FB1C4, #4B9EB0, #5BC0DE, #6FB1C4);
-  background-size: 400% 400%;
-  animation: ${gradientShift} 15s ease infinite;
-  padding: 20px;
-  font-family: 'Roboto', sans-serif;
-  position: relative;
-  overflow-x: hidden;
-
-  ${media.sm`
-    padding: 16px;
-    min-height: 100vh;
-    min-height: 100svh;
-  `}
-
-  ${media.xs`
-    padding: 12px;
-  `}
-
-  ${media.landscape`
-    padding: 12px;
-    min-height: 100vh;
-  `}
+const SubText = styled.p`
+  color:#64748b;font-size:.96rem;
 `;
-
-const LoginCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 48px 40px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 
-    0 32px 64px rgba(0, 0, 0, 0.12),
-    0 0 0 1px rgba(255, 255, 255, 0.2);
-  animation: ${fadeInUp} 0.8s ease-out;
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #6FB1C4, #4B9EB0);
-  }
-
-  ${media.md`
-    max-width: 380px;
-    padding: 40px 32px;
-    border-radius: 20px;
-  `}
-
-  ${media.sm`
-    max-width: 100%;
-    padding: 32px 24px;
-    border-radius: 16px;
-    animation: ${slideInMobile} 0.6s ease-out;
-    margin: auto;
-    box-shadow: 
-      0 20px 40px rgba(0, 0, 0, 0.15),
-      0 0 0 1px rgba(255, 255, 255, 0.2);
-  `}
-
-  ${media.xs`
-    padding: 24px 20px;
-    border-radius: 12px;
-  `}
-
-  ${media.landscape`
-    max-width: 380px;
-    padding: 24px 32px;
-  `}
-`;
-
-// Updated Logo component to use actual image
-const LogoContainer = styled.div`
-  width: 80px;
-  height: 80px;
-  margin: 0 auto 32px;
-  animation: ${float} 3s ease-in-out infinite;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(111, 177, 196, 0.3);
-
-  ${media.sm`
-    width: 70px;
-    height: 70px;
-    border-radius: 14px;
-    margin-bottom: 24px;
-  `}
-
-  ${media.xs`
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-  `}
-
-  ${media.landscape`
-    width: 60px;
-    height: 60px;
-    margin-bottom: 20px;
-  `}
-`;
-
-const LogoImage = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
-  padding: 8px;
-  border-radius: inherit;
-`;
-
-const Title = styled.h3`
-  text-align: center;
-  margin: 0 0 8px;
-  font-size: clamp(24px, 5vw, 30px);
-  font-weight: 700;
-  font-family: 'Pacifico', cursive;
-  color: #4B9EB0;
-  line-height: 1.2;
-
-  ${media.sm`
-    font-size: clamp(22px, 6vw, 28px);
-  `}
-
-  ${media.xs`
-    font-size: clamp(20px, 7vw, 26px);
-  `}
-
-  ${media.landscape`
-    font-size: 24px;
-    margin-bottom: 4px;
-  `}
-`;
-
-const Subtitle = styled.h4`
-  text-align: center;
-  margin: 0 0 40px;
-  color: #4B9EB0;
-  font-size: clamp(14px, 3.5vw, 16px);
-  line-height: 1.4;
-  font-family: 'Pacifico', cursive;
-
-  ${media.sm`
-    margin-bottom: 32px;
-  `}
-
-  ${media.xs`
-    margin-bottom: 24px;
-  `}
-
-  ${media.landscape`
-    margin-bottom: 24px;
-    font-size: 14px;
-  `}
-`;
-
 const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-
-  ${media.sm`
-    gap: 20px;
-  `}
-
-  ${media.xs`
-    gap: 18px;
-  `}
-
-  ${media.landscape`
-    gap: 16px;
-  `}
+  display:flex;flex-direction:column;gap:1.2rem;width:100%;
 `;
-
 const InputGroup = styled.div`
-  position: relative;
-  width: 100%;
+  position:relative;width:100%;
 `;
-
-const InputLabel = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  font-size: clamp(13px, 3vw, 14px);
-  font-weight: 600;
-  color: #4B9EB0;
-  transition: color 0.3s ease;
-  text-transform: capitalize;
-
-  ${media.sm`
-    margin-bottom: 6px;
-  `}
-
-  ${media.landscape`
-    margin-bottom: 4px;
-    font-size: 13px;
-  `}
+const Label = styled.label`
+  display:block;font-size:.88rem;font-weight:600;color:#475569;margin-bottom:.5rem;margin-left:.2rem;
 `;
-
 const Input = styled.input`
-  width: 100%;
-  padding: 16px 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 15px;
-  font-size: clamp(14px, 3.5vw, 16px);
-  background: white;
-  transition: all 0.3s ease;
-  outline: none;
-  box-sizing: border-box;
-  -webkit-appearance: none;
-  -webkit-tap-highlight-color: transparent;
-  color: #333;
-  
-  &:focus {
-    border-color: #6FB1C4;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(111, 177, 196, 0.15);
-  }
-  
-  &:focus + ${InputLabel} {
-    color: #6FB1C4;
-  }
-  
-  &::placeholder {
-    color: #9ca3af;
-  }
-
-  ${media.sm`
-    padding: 14px 18px;
-    border-radius: 12px;
-    
-    &:focus {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(111, 177, 196, 0.12);
-    }
-  `}
-
-  ${media.xs`
-    padding: 12px 16px;
-    border-radius: 10px;
-  `}
-
-  ${media.landscape`
-    padding: 12px 16px;
-    
-    &:focus {
-      transform: translateY(-1px);
-    }
-  `}
-
-  @media (max-width: 768px) {
-    font-size: 16px !important;
-    zoom: 1;
-  }
+  width:100%;padding:.85rem 1rem;border-radius:12px;border:2px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:.97rem;
+  &:focus {outline:none;background: #fff;border-color:#6FB1C4;}
+  &::placeholder {color:#94a3b8;}
 `;
-
-const PasswordInput = styled(Input)`
-  padding-right: 56px;
-
-  ${media.sm`
-    padding-right: 50px;
-  `}
-
-  ${media.xs`
-    padding-right: 46px;
-  `}
-`;
-
 const PasswordToggle = styled.button`
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  color: #6b7280;
-  transition: all 0.3s ease;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  margin-top: 0;
-  
-  &:hover {
-    color: #6FB1C4;
-    transform: translateY(-50%) scale(1.1);
-  }
-
-  &:active {
-    transform: translateY(-50%) scale(0.95);
-  }
-
-  ${media.sm`
-    right: 14px;
-    width: 20px;
-    height: 20px;
-    font-size: 16px;
-  `}
-
-  ${media.xs`
-    right: 12px;
-    width: 18px;
-    height: 18px;
-    font-size: 14px;
-  `}
+  position:absolute;right:12px;top:36px;background:none;border:none;cursor:pointer;color:#94a3b8;
+  padding:4px;display:flex;align-items:center;transition:color .2s;
+  &:hover{color:#64748b;}
+`;
+const SubmitButton = styled.button`
+  width:100%;padding:.87rem;margin-top:.5rem;
+  background:linear-gradient(135deg,#6FB1C4 0%,#4B9EB0 100%);
+  color:#fff;border:none;border-radius:12px;font-size:1.01rem;font-weight:600;cursor:pointer;
+  transition:.3s;box-shadow:0 4px 14px rgba(75,158,176,0.18);gap:8px;
+  display:flex;align-items:center;justify-content:center;
+  &:hover:not(:disabled){background:linear-gradient(135deg,#66a9bc 0%,#428f9f 100%);}
+  &:disabled{opacity:.7;cursor:not-allowed;}
+`;
+const FooterLink = styled.div`
+  margin-top:1.5rem;text-align:center;
+  a{color:#4B9EB0;font-size:.91rem;font-weight:600;text-decoration:none;transition:color .18s;padding:3px;}
+   a:hover{color:#2e7a8a;text-decoration:underline;}
+`;
+const Spinner = styled.div`
+  width:20px;height:20px;border:2px solid rgba(255,255,255,0.28);border-radius:50%;
+  border-top-color:white;animation:spin .8s linear infinite;@keyframes spin{to{transform:rotate(360deg);}}
+`;
+// ---- MODAL STYLE ----
+const ModalBg = styled.div`
+  position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(60,90,130,0.09);
+  display:flex;align-items:center;justify-content:center;z-index:77;
+`;
+const ModalCard = styled(Card)`
+  max-width:350px;padding:2rem;animation:${fadeIn} .6s;
 `;
 
-const LoginButton = styled.button`
-  width: 100%;
-  padding: 16px;
-  background: linear-gradient(135deg, #6FB1C4, #4B9EB0);
-  color: white;
-  border: none;
-  border-radius: 15px;
-  font-size: clamp(14px, 3.5vw, 16px);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  margin-top: 8px;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  min-height: 48px;
-  font-family: 'Pacifico', cursive;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(111, 177, 196, 0.4);
-    animation: ${pulse} 1.5s infinite;
-    background: linear-gradient(135deg, rgb(85, 156, 175), rgb(38, 136, 158));
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-    animation: none;
-  }
-
-  ${media.sm`
-    padding: 14px;
-    border-radius: 12px;
-    min-height: 44px;
-    
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 20px rgba(111, 177, 196, 0.35);
+// ---- PASSWORD RESET COMPONENT ----
+function FranchisePasswordReset({ onClose }) {
+  const [franchiseId, setFranchiseId] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const franchiseurl = process.env.REACT_APP_BACKEND_FRANCHISE_BASE_URL;
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    if (!franchiseId.trim()) {
+      setStatus("Please enter Franchise ID");
+      return;
     }
-  `}
-
-  ${media.xs`
-    padding: 12px;
-    border-radius: 10px;
-    min-height: 42px;
-  `}
-
-  ${media.landscape`
-    padding: 12px;
-    min-height: 40px;
-  `}
-
-  @media (hover: none) and (pointer: coarse) {
-    &:hover {
-      transform: none;
-      animation: none;
+    setLoading(true);
+    setStatus("Sending reset link...");
+    try {
+      const resp = await axios.post(
+        `${franchiseurl}request-password-reset/`,
+        { franchise_id: franchiseId.trim() }
+      );
+      if (resp.data.status === "ok") {
+        setStatus(`Reset link sent to ${resp.data.email}`);
+      } else {
+        setStatus("Unexpected response from server.");
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to send reset link";
+      setStatus(msg);
+    } finally {
+      setLoading(false);
     }
-    
-    &:active {
-      transform: scale(0.98);
-      box-shadow: 0 4px 12px rgba(111, 177, 196, 0.3);
-    }
-  }
-`;
+  };
 
-const ForgotLink = styled.a`
-  display: block;
-  text-align: center;
-  color: #6FB1C4;
-  text-decoration: none;
-  font-size: clamp(13px, 3vw, 14px);
-  font-weight: 500;
-  margin-top: 20px;
-  transition: color 0.3s ease;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  padding: 8px;
-  
-  &:hover {
-    color: #4B9EB0;
-    text-decoration: underline;
-  }
+  return (
+    <ModalBg>
+      <ModalCard>
+        <HeaderGroup>
+          <WelcomeText>Reset Password</WelcomeText>
+          <SubText>Enter your franchise ID to receive a reset link.</SubText>
+        </HeaderGroup>
+        <form onSubmit={handleRequestReset} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Label htmlFor="franchiseId">Franchise ID</Label>
+          <Input
+            id="franchiseId"
+            type="text"
+            value={franchiseId}
+            onChange={e => setFranchiseId(e.target.value)}
+            placeholder="SHF001"
+          />
+          <SubmitButton type="submit" disabled={loading}>
+            {loading && <Spinner />} Send Reset Link
+          </SubmitButton>
+        </form>
+        {status && <SubText style={{ marginTop: 10 }}>{status}</SubText>}
+        <FooterLink>
+          <a href="#close" onClick={e => { e.preventDefault(); onClose(); }}>Back to Sign In</a>
+        </FooterLink>
+      </ModalCard>
+    </ModalBg>
+  );
+}
 
-  &:active {
-    opacity: 0.7;
-  }
-
-  ${media.sm`
-    margin-top: 16px;
-    padding: 6px;
-  `}
-
-  ${media.xs`
-    margin-top: 12px;
-    padding: 4px;
-  `}
-
-  ${media.landscape`
-    margin-top: 12px;
-  `}
-`;
-
-const LoadingSpinner = styled.div`
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
-  margin-right: 8px;
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  ${media.sm`
-    width: 14px;
-    height: 14px;
-    margin-right: 6px;
-  `}
-`;
-
+// ---- MAIN LOGIN COMPONENT ----
 const Login = () => {
-  const [formData, setFormData] = useState({
-    id: '',
-    password: ''
-  });
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ id: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const franchiseurl = process.env.REACT_APP_BACKEND_FRANCHISE_BASE_URL;
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       const response = await fetch(`${franchiseurl}login/`, {
         method: "POST",
@@ -695,102 +188,63 @@ const Login = () => {
           password: formData.password,
         }),
       });
-
       const data = await response.json();
 
       if (response.ok) {
-        toast.success("Login successful! Welcome back.", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
+        toast.success("Welcome back! Redirecting...", {
+          position: "top-center", autoClose: 1400, hideProgressBar: true,
+          style: { background: '#4B9EB0', color: 'white' }
         });
-        
-        console.log("Franchise Info:", data.details);
         localStorage.setItem("franchise_id", data.franchise_id);
         localStorage.setItem("franchise_name", data.name);
-        
-        // Delay navigation to show toast
-        setTimeout(() => {
-          navigate("/PatientRegisterForm");
-        }, 1500);
+        setTimeout(() => { navigate("/PatientRegisterForm"); }, 1400);
       } else {
-        toast.error(data.message || "Account is inactive. Please contact admin.", {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        toast.error(data.message || "Invalid credentials", { position: "top-center" });
       }
     } catch (error) {
-      console.error("Login error:", error);
-      toast.error("Something went wrong! Please try again.", {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+      toast.error("Connection failed. Please try again.", { position: "top-center" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
   return (
     <>
       <GlobalStyle />
-      <Container>
-        <LoginCard>
-          <LogoContainer>
-            <LogoImage 
-              src={logo} 
-              alt="Company Logo" 
-              onError={(e) => {
-                // Fallback if image fails to load
-                e.target.style.display = 'none';
-                e.target.parentNode.innerHTML = '🔐';
-                e.target.parentNode.style.fontSize = '24px';
-                e.target.parentNode.style.background = 'linear-gradient(135deg, #6FB1C4, #4B9EB0)';
-              }}
-            />
-          </LogoContainer>
-          <Title>Welcome Back</Title>
-          <Subtitle>Sign in to your account to continue</Subtitle>
-          
+      <PageContainer>
+        <Card>
+          <LogoWrapper>
+            {logo ? (
+              <img src={logo} alt="Logo" onError={e => e.target.style.display = 'none'} />
+            ) : (
+              <span style={{ fontSize: '2rem' }}>🔐</span>
+            )}
+          </LogoWrapper>
+          <HeaderGroup>
+            <WelcomeText>Welcome Back</WelcomeText>
+            <SubText>Please enter your details to sign in.</SubText>
+          </HeaderGroup>
           <Form onSubmit={handleSubmit}>
             <InputGroup>
-              <InputLabel htmlFor="id">User ID</InputLabel>
+              <Label htmlFor="id">User ID</Label>
               <Input
                 id="id"
                 name="id"
                 type="text"
-                placeholder="Enter your user ID"
+                placeholder="Enter your franchise ID"
                 value={formData.id}
                 onChange={handleChange}
                 required
                 autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck="false"
               />
             </InputGroup>
-            
             <InputGroup>
-              <InputLabel htmlFor="password">Password</InputLabel>
-              <PasswordInput
+              <Label htmlFor="password">Password</Label>
+              <Input
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={formData.password}
                 onChange={handleChange}
                 required
@@ -798,38 +252,37 @@ const Login = () => {
               />
               <PasswordToggle
                 type="button"
-                onClick={togglePasswordVisibility}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? '🙈' : '👁️'}
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? (
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
               </PasswordToggle>
             </InputGroup>
-            
-            <LoginButton type="submit" disabled={isLoading}>
-              {isLoading && <LoadingSpinner />}
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </LoginButton>
+            <SubmitButton type="submit" disabled={isLoading}>
+              {isLoading ? (<><Spinner /> Signing In...</>) : 'Sign In'}
+            </SubmitButton>
           </Form>
-          
-          <ForgotLink href="#forgot">
-            Forgot your password?
-          </ForgotLink>
-        </LoginCard>
-      </Container>
-      
-      {/* Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
+          <FooterLink>
+            <a
+              href="#forgot-password"
+              onClick={e => { e.preventDefault(); setShowResetModal(true); }}>
+              Forgot your password?
+            </a>
+          </FooterLink>
+        </Card>
+        {showResetModal && (
+          <FranchisePasswordReset onClose={() => setShowResetModal(false)} />
+        )}
+      </PageContainer>
+      <ToastContainer />
     </>
   );
 };
