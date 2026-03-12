@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Menu, X, Home, EllipsisVertical } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { LogOut ,IndianRupee,UserPen,Contact,Diff} from 'lucide-react';
-import { Tooltip } from 'react-tooltip'; // Optional: If using external tooltips
-import {  Print, Settings, LocalShipping, FolderOpen, Description } from '@mui/icons-material';
+import { Menu, X, Home, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, IndianRupee, UserPen, Contact, Diff, TrendingUp, Activity } from 'lucide-react';
+import { Print, Settings, LocalShipping, FolderOpen, Description } from '@mui/icons-material';
+
 // Main layout container
 const LayoutContainer = styled.div`
   display: flex;
@@ -80,7 +80,11 @@ const LogoutContainer = styled.div`
 
 const LogoutIcon = styled(LogOut)`
   color: white;
-  margin-right: 15px;
+  margin-right: ${props => (props.isCollapsed ? '0' : '15px')};
+  
+  @media (max-width: 767px) {
+    margin-right: 15px;
+  }
 `;
 
 const LogoutText = styled.span`
@@ -88,7 +92,16 @@ const LogoutText = styled.span`
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
   font-weight: 600;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  opacity: ${props => (props.isCollapsed ? '0' : '1')};
+  width: ${props => (props.isCollapsed ? '0' : 'auto')};
+  overflow: hidden;
+  white-space: nowrap;
+  
+  @media (max-width: 767px) {
+    opacity: 1;
+    width: auto;
+  }
 `;
 
 // Sidebar Container
@@ -97,25 +110,31 @@ const SidebarContainer = styled.aside`
   top: 0;
   left: 0;
   height: 100vh;
-  width: 280px;
+  width: ${props => (props.isCollapsed ? '80px' : '280px')};
   background: linear-gradient(180deg, #6FB1C4 0%, #4B9EB0 100%);
   color: white;
   z-index: 999;
   transform: translateX(${props => (props.isOpen ? '0' : '-100%')});
-  transition: transform 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
   box-shadow: ${props => (props.isOpen ? '2px 0 20px rgba(0, 0, 0, 0.3)' : 'none')};
-  overflow-y: auto;
+  overflow-y: ${props => (props.isCollapsed ? 'visible' : 'auto')};
+  overflow-x: ${props => (props.isCollapsed ? 'visible' : 'hidden')};
   display: flex;
   flex-direction: column;
 
   @media (min-width: 768px) {
-    position: fixed;
     transform: translateX(0);
-    width: ${props => (props.isCollapsed ? '80px' : '280px')};
-    transition: width 0.3s ease-in-out;
     box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
   }
+  
+  @media (max-width: 767px) {
+    width: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 `;
+
+
 
 // Main Content Area
 const MainContent = styled.main`
@@ -190,7 +209,9 @@ const CollapseButton = styled.button`
   padding: 8px;
   border-radius: 15px;
   transition: all 0.3s ease;
-  font-family: 'Roboto', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -240,6 +261,10 @@ const NavItem = styled.div`
       border-radius: 0 4px 4px 0;
     }
   }
+  
+  @media (min-width: 768px) {
+    justify-content: ${props => (props.isCollapsed ? 'center' : 'flex-start')};
+  }
 `;
 
 const NavIcon = styled.div`
@@ -251,6 +276,10 @@ const NavIcon = styled.div`
   flex-shrink: 0;
   color: white;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  
+  @media (max-width: 767px) {
+    margin-right: 15px;
+  }
 `;
 
 const NavText = styled.span`
@@ -262,54 +291,107 @@ const NavText = styled.span`
   font-weight: 600;
   font-size: 0.95rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  width: ${props => (props.isCollapsed ? '0' : 'auto')};
 
   @media (max-width: 767px) {
     opacity: 1;
+    width: auto;
   }
 `;
 
-// Demo content for the main area
-const DemoContent = styled.div`
-  padding: 40px;
+// Tooltip for collapsed state
+const Tooltip = styled.div`
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 10px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  
+  ${NavItem}:hover & {
+    opacity: ${props => (props.show ? '1' : '0')};
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-right-color: rgba(0, 0, 0, 0.9);
+  }
   
   @media (max-width: 767px) {
-    padding: 80px 20px 40px 20px; // Extra top padding for mobile toggle button
+    display: none;
   }
 `;
 
 const SidebarLayout = ({ children }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState('RegisterDetails');
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false); // Default expanded
 
+  const location = useLocation();
   const navigate = useNavigate();
 
   const toggleMobileSidebar = () => setIsMobileOpen(!isMobileOpen);
   const toggleDesktopSidebar = () => setIsDesktopCollapsed(!isDesktopCollapsed);
   const closeMobileSidebar = () => setIsMobileOpen(false);
 
-const navItems = [
-  { name: 'PatientRegisterForm', icon: Home, label: 'Patient Register' },
-  { name: 'PatientList', icon: Contact, label: 'Patient List' },
-  { name: 'PatientEditForm', icon: UserPen, label: 'Patient Edit' },
-  { name: 'PaymentGateway', icon: IndianRupee, label: 'Payment Gateway' },
-  { name: 'SampleCollection', icon: LocalShipping, label: 'Sample Collection' },
-  { name: 'SampleTransfer', icon: FolderOpen, label: 'Sample Transfer' },
-  { name: 'BatchGeneration', icon: Diff, label: 'Batch Generation' },
-  { name: 'ReportGeneration', icon: Description, label: 'Report Generation' },
-];
+  const navGroups = [
+    {
+      title: 'Patient Management',
+      items: [
+        { name: 'PatientRegisterForm', icon: Home, label: 'Register Patient' },
+        { name: 'PatientList', icon: Contact, label: 'Patient List' },
+        { name: 'PatientEditForm', icon: UserPen, label: 'Edit Patient' },
+        { name: 'DuePatients', icon: Print, label: 'Due Patients' },
+      ]
+    },
+    {
+      title: 'Operations',
+      items: [
+        { name: 'SampleCollection', icon: LocalShipping, label: 'Sample Collection' },
+        { name: 'SampleTransfer', icon: FolderOpen, label: 'Sample Transfer' },
+        { name: 'BatchGeneration', icon: Diff, label: 'Batch Generation' },
+      ]
+    },
+    {
+      title: 'Finance & Reports',
+      items: [
+        { name: 'PaymentGateway', icon: IndianRupee, label: 'Payment Gateway' },
+        { name: 'Accounts', icon: TrendingUp, label: 'Accounts Revenue' },
+        { name: 'ReportGeneration', icon: Description, label: 'Reports Dashboard' },
+        { name: 'ReferralReport', icon: Description, label: 'Referral Report' },
+        { name: 'CashTally', icon: Activity, label: 'Daily Cash Tally' },
+      ]
+    },
+  ];
 
-const pathMap = {
-  PatientRegisterForm: '/PatientRegisterForm',
-  PatientList: '/PatientList',
-  PatientEditForm: '/PatientEditForm',
-  PaymentGateway: '/PaymentGateway',
-  SampleCollection: '/SampleCollection',
-  SampleTransfer: '/SampleTransfer',
-  BatchGeneration: '/BatchGeneration',
-  ReportGeneration: '/ReportGeneration',
-};
-
+  const pathMap = {
+    PatientRegisterForm: '/PatientRegisterForm',
+    PatientList: '/PatientList',
+    PatientEditForm: '/PatientEditForm',
+    PaymentGateway: '/PaymentGateway',
+    SampleCollection: '/SampleCollection',
+    SampleTransfer: '/SampleTransfer',
+    BatchGeneration: '/BatchGeneration',
+    ReportGeneration: '/ReportGeneration',
+    DuePatients: '/DuePatients',
+    Accounts: '/Accounts',
+    ReferralReport: '/ReferralReport',
+    CashTally: '/CashTally',
+  };
 
   return (
     <LayoutContainer>
@@ -325,34 +407,56 @@ const pathMap = {
       <SidebarContainer isOpen={isMobileOpen} isCollapsed={isDesktopCollapsed}>
         <SidebarHeader>
           <Logo isCollapsed={isDesktopCollapsed}>
-            {isDesktopCollapsed ? 'D' : 'Diagnostics Franchise'}
+            {isDesktopCollapsed ? 'DF' : 'Diagnostics Franchise'}
           </Logo>
           <CloseButton onClick={closeMobileSidebar}>
             <X size={24} />
           </CloseButton>
           <CollapseButton onClick={toggleDesktopSidebar}>
-            <EllipsisVertical size={20} />
+            {isDesktopCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </CollapseButton>
         </SidebarHeader>
 
         <SidebarNav>
-          {navItems.map((item) => (
-            <NavItem
-              key={item.name}
-              className={activeItem === item.name ? 'active' : ''}
-              onClick={() => {
-                setActiveItem(item.name);
-                closeMobileSidebar();
-                navigate(pathMap[item.name]);
-              }}
-            >
-              <NavIcon isCollapsed={isDesktopCollapsed}>
-                <item.icon size={20} />
-              </NavIcon>
-              <NavText isCollapsed={isDesktopCollapsed}>
-                {item.label}
-              </NavText>
-            </NavItem>
+          {navGroups.map((group, groupIndex) => (
+            <div key={groupIndex}>
+              {!isDesktopCollapsed && (
+                <div style={{
+                  padding: '10px 20px 5px',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontWeight: 'bold',
+                  letterSpacing: '1px'
+                }}>
+                  {group.title}
+                </div>
+              )}
+              {group.items.map((item) => (
+                <NavItem
+                  key={item.name}
+                  className={location.pathname === pathMap[item.name] ? 'active' : ''}
+                  isCollapsed={isDesktopCollapsed}
+                  onClick={() => {
+                    closeMobileSidebar();
+                    navigate(pathMap[item.name]);
+                  }}
+                >
+                  <NavIcon isCollapsed={isDesktopCollapsed}>
+                    <item.icon size={20} />
+                  </NavIcon>
+                  <NavText isCollapsed={isDesktopCollapsed}>
+                    {item.label}
+                  </NavText>
+                  {isDesktopCollapsed && (
+                    <Tooltip show={isDesktopCollapsed}>
+                      {item.label}
+                    </Tooltip>
+                  )}
+                </NavItem>
+              ))}
+              {!isDesktopCollapsed && <div style={{ height: '10px' }} />}
+            </div>
           ))}
         </SidebarNav>
 
@@ -366,8 +470,8 @@ const pathMap = {
           }}
           title="Logout"
         >
-          <LogoutIcon size={20} />
-          {!isDesktopCollapsed && <LogoutText>Logout</LogoutText>}
+          <LogoutIcon size={20} isCollapsed={isDesktopCollapsed} />
+          <LogoutText isCollapsed={isDesktopCollapsed}>Logout</LogoutText>
         </LogoutContainer>
       </SidebarContainer>
 

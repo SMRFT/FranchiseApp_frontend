@@ -24,7 +24,7 @@ import {
 // Modern Styled Components
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #6FB1C4, #4B9EB0); 
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
   padding: 1rem;
   position: relative;
   &::before {
@@ -57,12 +57,11 @@ const Header = styled.div`
 const MainTitle = styled.h1`
   font-size: 3rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  background: linear-gradient(135deg, #1e293b, #334155);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   
   @media (max-width: 768px) {
     font-size: 2rem;
@@ -70,7 +69,7 @@ const MainTitle = styled.h1`
 `
 
 const Subtitle = styled.p`
-  color: rgba(255, 255, 255, 0.8);
+  color: #64748b;
   font-size: 1.25rem;
   font-weight: 300;
   
@@ -83,50 +82,51 @@ const Card = styled.div`
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   &:hover {
     transform: translateY(-8px);
-    box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.1);
   }
 `
 
 const GlassCard = styled(Card)`
-  background: rgba(189, 189, 189, 0.76);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: #f8fafc;
   }
 `
 
 const CompactFranchiseCard = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
+  background: white;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #e2e8f0;
   padding: 1rem 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: white;
+  color: #1e293b;
   margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
     transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
   }
 `
 
 const FranchiseIcon = styled.div`
-  background: rgba(255, 255, 255, 0.2);
+  background: #f1f5f9;
   border-radius: 12px;
   padding: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #3b82f6;
 `
 
 const FranchiseInfo = styled.div`
@@ -135,9 +135,10 @@ const FranchiseInfo = styled.div`
     font-size: 1.125rem;
     font-weight: 600;
     margin: 0 0 0.25rem 0;
+    color: #0f172a;
   }
   p {
-    opacity: 0.8;
+    color: #64748b;
     margin: 0;
     font-size: 0.875rem;
   }
@@ -184,12 +185,64 @@ const TwoColumnGrid = styled.div`
 `
 
 const ActionButtonsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
-  @media (min-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
+  flex-wrap: wrap;
+  justify-content: center;
+  
+  @media (min-width: 640px) {
+    justify-content: flex-start;
+  }
+`
+
+const SmallButton = styled.button`
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+  &:active {
+    transform: translateY(0);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+`
+
+const MakePaymentBtn = styled(SmallButton)`
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  
+  &:hover {
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+  }
+`
+
+const HistoryBtn = styled(SmallButton)`
+  background: white;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  
+  &:hover {
+    background: #f8fafc;
+    color: #1e293b;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   }
 `
 
@@ -327,13 +380,13 @@ const SecondaryButton = styled(Button)`
 `
 
 const OutlineButton = styled(Button)`
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  backdrop-filter: blur(10px);
+  background: transparent;
+  border: 2px solid #e2e8f0;
+  color: #475569;
   &:hover:not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.2);
+    border-color: #94a3b8;
+    background: #f8fafc;
+    color: #1e293b;
   }
 `
 
@@ -370,8 +423,11 @@ const WalletBalance = styled.div`
 const ShareCard = styled(GlassCard)`
   text-align: center;
   background: ${(props) => props.gradient};
+  color: white;
   position: relative;
   overflow: hidden;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
   &::before {
     content: '';
     position: absolute;
@@ -379,7 +435,7 @@ const ShareCard = styled(GlassCard)`
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
     animation: shimmer 3s ease-in-out infinite;
   }
   @keyframes shimmer {
@@ -835,16 +891,16 @@ const ModernPaymentGateway = () => {
 
         {/* Action Buttons */}
         <ActionButtonsGrid>
-          <PrimaryButton onClick={() => setShowPaymentModal(true)} disabled={!franchiseExists}>
-            <Plus size={20} />
+          <MakePaymentBtn onClick={() => setShowPaymentModal(true)} disabled={!franchiseExists}>
+            <Plus size={18} />
             Make Payment
             <ArrowUpRight size={16} />
-          </PrimaryButton>
-          <SecondaryButton onClick={() => setShowHistoryModal(true)} disabled={!franchiseExists}>
-            <History size={20} />
+          </MakePaymentBtn>
+          <HistoryBtn onClick={() => setShowHistoryModal(true)} disabled={!franchiseExists}>
+            <History size={18} />
             Payment History
             <Eye size={16} />
-          </SecondaryButton>
+          </HistoryBtn>
         </ActionButtonsGrid>
 
         {/* Stats Section */}
