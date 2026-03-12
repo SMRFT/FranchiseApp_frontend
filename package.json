@@ -6,7 +6,6 @@
     "@craco/craco": "^7.1.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@ericblade/quagga2": "^1.8.4",
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
     "@testing-library/dom": "^10.4.0",
@@ -16,8 +15,9 @@
     "@zxing/browser": "^0.1.5",
     "axios": "^1.10.0",
     "bootstrap": "^5.3.6",
+    "html5-qrcode": "^2.3.8",
     "jsbarcode": "^3.12.1",
-    "jspdf": "^3.0.3",
+    "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.511.0",
     "quagga": "^0.12.1",
@@ -58,8 +58,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "devDependencies": {
-    "html5-qrcode": "^2.3.8"
   }
 }
