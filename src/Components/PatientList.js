@@ -1316,15 +1316,16 @@ const PatientList = () => {
   const handleCancelTest = async (item, testId) => {
     try {
       await axios.patch(`${franchiseurl}test-cancel-request/`, {
-        patient_id: item.patient_id,
+        patient_id: item.patient_id || item.patient,
         created_date: item.created_date || item.registrationDate,
+        barcode: item.barcode,
         test_ids: [testId],
       })
 
       const createdDate = item.created_date || item.registrationDate
       setData(prevData =>
         prevData.map(p =>
-          p.patient_id === item.patient_id && (p.created_date || p.registrationDate) === createdDate && p.barcode === item.barcode
+          (p.patient_id === item.patient_id || p.patient === item.patient) && (p.created_date || p.registrationDate) === createdDate && p.barcode === item.barcode
             ? {
               ...p,
               testdetails: parseTestDetails(p.testdetails).map(t =>
