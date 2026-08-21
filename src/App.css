@@ -1,0 +1,29 @@
+/* App Global Responsive Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  color: #1e293b;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.main-content-wrapper {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 18px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .main-content-wrapper {
+    padding: 10px 8px;
+    padding-top: 68px !important;
+    width: 100vw;
+  }
+}
